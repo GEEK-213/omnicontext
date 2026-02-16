@@ -9,17 +9,22 @@ class DatabaseHelper {
   DatabaseHelper._internal();
 
   Database? _database;
+  Future<Database>? _initializationFuture;
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDatabase();
-    return _database!;
+
+    // Prevent multiple concurrent initializations
+    if (_initializationFuture != null) return _initializationFuture!;
+
+    _initializationFuture = _initDatabase();
+    return _initializationFuture!;
   }
 
   Future<Database> _initDatabase() async {
     final docsDir = await getApplicationDocumentsDirectory();
     final dbPath = join(docsDir.path, 'omnicontext.db');
-    
+
     // Ensure the directory exists
     final dbFile = File(dbPath);
     if (!await dbFile.parent.exists()) {
@@ -27,9 +32,10 @@ class DatabaseHelper {
     }
 
     final db = sqlite3.open(dbPath);
-    
+
     _createTables(db);
-    
+    _database = db;
+
     return db;
   }
 

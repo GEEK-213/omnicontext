@@ -39,6 +39,9 @@ dependencies:
   sqlite3: ^2.1.0 # Downgraded to be safe, or keep latest? 3.1.5 should be fine with 2.6.1. Let's keep sqlite3 latest if possible, but maybe 2.x is safer. Let's try to match known goods.
   path_provider: ^2.1.5
   path: ^1.9.1
+  uuid: ^4.5.2
+  flutter_hooks: ^0.21.3+1
+  hooks_riverpod: ^2.6.1
 
 dev_dependencies:
   flutter_test:

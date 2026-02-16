@@ -16,13 +16,21 @@ class ContextGeneratorService {
 
   ContextGeneratorService(this._gitWatcher);
 
-  Future<String> generateContextPrompt(String projectPath) async {
+  Future<String> generateContextPrompt(
+    String projectPath, {
+    String? figmaUrl,
+  }) async {
     final branch = await _gitWatcher.getCurrentBranch(projectPath);
 
+    final figmaLine = figmaUrl != null && figmaUrl.isNotEmpty
+        ? '\n- Figma Design: $figmaUrl'
+        : '';
+
     return '''
-ACTIVE CONTEXT:
-- Project Path: $projectPath
-- Git Branch: ${branch ?? 'Not a repo'}
-- System: Windows 11''';
+--- BEGIN PROJECT CONTEXT ---
+Project: $projectPath
+Branch: ${branch ?? 'Not a repo'}
+System: Windows 11$figmaLine
+--- END CONTEXT ---''';
   }
 }
