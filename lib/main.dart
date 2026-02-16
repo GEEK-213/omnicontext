@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_acrylic/flutter_acrylic.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:omnicontext/features/dashboard/dashboard_screen.dart';
 import 'package:window_manager/window_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Acrylic
+  await Window.initialize();
+  await Window.setEffect(
+    effect: WindowEffect.acrylic,
+    color: const Color(0xCC222222), // Dark acrylic tint
+    dark: true,
+  );
 
   // Initialize Window Manager
   await windowManager.ensureInitialized();
@@ -13,7 +22,7 @@ void main() async {
     size: Size(350, 800),
     minimumSize: Size(100, 100),
     center: false,
-    backgroundColor: Colors.transparent,
+    backgroundColor: Colors.transparent, // Crucial for acrylic
     skipTaskbar: false,
     titleBarStyle: TitleBarStyle.hidden,
     alwaysOnTop: true,
