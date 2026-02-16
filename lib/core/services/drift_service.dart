@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'drift_service.g.dart';
@@ -67,23 +68,35 @@ class DriftService {
 }
 
 @riverpod
-class DriftMonitor extends _$DriftMonitor {
+class DriftMonitor extends _$DriftMonitor with WidgetsBindingObserver {
   Timer? _timer;
 
   @override
   Future<DriftStatus> build() async {
     final service = ref.watch(driftServiceProvider);
 
-    // Start periodic check
-    // In a real app, strict background isolation might be needed if this is heavy.
-    // For `git fetch` on a small repo, standard async IO is usually fine.
+    // Add lifecycle observer to check when app comes to foreground
+    WidgetsBinding.instance.addObserver(this);
+    ref.onDispose(() {
+      WidgetsBinding.instance.removeObserver(this);
+      _timer?.cancel();
+    });
+
+    // Start periodic check - Reduced to 30 seconds for "Real Time" feel
     _timer?.cancel();
-    _timer = Timer.periodic(const Duration(minutes: 5), (_) {
-      // Invalidate self to re-trigger build/fetch
+    _timer = Timer.periodic(const Duration(seconds: 30), (_) {
       ref.invalidateSelf();
     });
 
-    final projectPath = Directory.current.path; // Or pass via provider family
+    final projectPath = Directory.current.path;
     return service.checkDrift(projectPath);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Immediately check when user comes back to the app
+      ref.invalidateSelf();
+    }
   }
 }
