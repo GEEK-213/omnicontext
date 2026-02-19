@@ -7,7 +7,7 @@ part of 'context_generator_service.dart';
 // **************************************************************************
 
 String _$contextGeneratorServiceHash() =>
-    r'8548607680e01b9354cccad147ff0845dc0a5724';
+    r'd4efef1b373a8a643fec00337c01aad032968ba8';
 
 /// See also [contextGeneratorService].
 @ProviderFor(contextGeneratorService)

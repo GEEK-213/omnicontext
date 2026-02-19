@@ -4,6 +4,8 @@ import 'package:omnicontext/core/services/git_watcher_service.dart';
 
 import 'package:path/path.dart' as path;
 
+import 'package:omnicontext/core/services/ai_summarizer_service.dart';
+
 part 'context_generator_service.g.dart';
 
 @Riverpod(keepAlive: true)
@@ -11,13 +13,15 @@ ContextGeneratorService contextGeneratorService(
   ContextGeneratorServiceRef ref,
 ) {
   final gitWatcher = ref.watch(gitWatcherServiceProvider);
-  return ContextGeneratorService(gitWatcher);
+  final aiSummarizer = ref.watch(aiSummarizerProvider.notifier);
+  return ContextGeneratorService(gitWatcher, aiSummarizer);
 }
 
 class ContextGeneratorService {
   final GitWatcherService _gitWatcher;
+  final AiSummarizer _aiSummarizer;
 
-  ContextGeneratorService(this._gitWatcher);
+  ContextGeneratorService(this._gitWatcher, this._aiSummarizer);
 
   Future<String> generateContextPrompt(
     String projectPath, {
@@ -49,12 +53,10 @@ $recentWork
   }
 
   Future<String> _scanRecentChanges(String projectPath) async {
-    print('DEBUG: _scanRecentChanges called with path: $projectPath');
     // 1. Scan the root project path (no longer restricted to lib/)
     final rootDir = Directory(projectPath);
 
     if (!await rootDir.exists()) {
-      print('DEBUG: Project directory does not exist!');
       return '';
     }
 
@@ -65,7 +67,6 @@ $recentWork
     List<FileSystemEntity> recentFiles = [];
 
     // 2. Add Error Handling - Manual Recursion with Smart Ignore
-    print('DEBUG: Starting smart scan of ${rootDir.path}');
     await _manualScan(rootDir, recentFiles, oneDayAgo);
 
     // Sort by modification time (newest first)
@@ -82,17 +83,40 @@ $recentWork
     buffer.writeln('\n--- RECENT WORK (AUTO-SCANNED) ---');
     buffer.writeln('Files modified in the last 24 hours (Top 5):');
 
+    int processedCount = 0;
     for (final file in topFiles) {
+      processedCount++;
       if (file is File) {
         final relativePath = file.path.replaceFirst(projectPath, '');
         buffer.writeln('\n[File: $relativePath]');
+
         try {
           final content = await file.readAsString();
-          // Truncate if too long (optional, but good for safety)
-          if (content.length > 5000) {
-            buffer.writeln('${content.substring(0, 5000)}\n... (truncated)');
-          } else {
-            buffer.writeln(content);
+
+          bool aiSuccess = false;
+          if (_aiSummarizer.isConfigured) {
+            final summary = await _aiSummarizer.summarizeCode(content);
+            if (!summary.startsWith('Error')) {
+              buffer.writeln('AI SUMMARY:');
+              buffer.writeln(summary);
+              aiSuccess = true;
+
+              // Add delay to respect free tier limits
+              if (processedCount < topFiles.length) {
+                await Future.delayed(const Duration(seconds: 4));
+              }
+            } else {
+              buffer.writeln('// AI ERROR: ${summary.split(':').last.trim()}');
+            }
+          }
+
+          if (!aiSuccess) {
+            // Fallback to raw code
+            if (content.length > 5000) {
+              buffer.writeln('${content.substring(0, 5000)}\n... (truncated)');
+            } else {
+              buffer.writeln(content);
+            }
           }
         } catch (e) {
           buffer.writeln('(Error reading content)');
@@ -147,7 +171,6 @@ $recentWork
       }
     } catch (e) {
       // Ignore access errors
-      print('Error scanning dir ${dir.path}: $e');
     }
   }
 }

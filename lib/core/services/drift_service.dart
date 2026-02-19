@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:omnicontext/core/providers/active_project_provider.dart';
 
 part 'drift_service.g.dart';
 
@@ -74,6 +75,7 @@ class DriftMonitor extends _$DriftMonitor with WidgetsBindingObserver {
   @override
   Future<DriftStatus> build() async {
     final service = ref.watch(driftServiceProvider);
+    final activeProject = ref.watch(activeProjectProvider);
 
     // Add lifecycle observer to check when app comes to foreground
     WidgetsBinding.instance.addObserver(this);
@@ -88,7 +90,9 @@ class DriftMonitor extends _$DriftMonitor with WidgetsBindingObserver {
       ref.invalidateSelf();
     });
 
-    final projectPath = Directory.current.path;
+    final projectPath = activeProject.value;
+    if (projectPath == null) return DriftStatus.unknown;
+
     return service.checkDrift(projectPath);
   }
 

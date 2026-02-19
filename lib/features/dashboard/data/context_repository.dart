@@ -88,16 +88,13 @@ class ContextRepository {
     final db = await _dbHelper.database;
     // Scan the root project path (no longer restricted to lib/)
     final dir = Directory(projectPath);
-    print('DEBUG: indexLocalFiles called with path: $projectPath');
 
     if (!await dir.exists()) {
-      print('DEBUG: Project directory does not exist!');
       return 0;
     }
 
     // 1. Scan .dart files
     final List<File> dartFiles = [];
-    print('DEBUG: Starting smart scan of ${dir.path}');
     await _scanDirectory(dir, dartFiles);
 
     // 2. Sort by last modified (newest first) & take top 50

@@ -15,6 +15,8 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:omnicontext/core/services/drift_service.dart';
 import 'package:omnicontext/core/services/sync_service.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:omnicontext/core/services/ai_summarizer_service.dart';
 
 class DashboardScreen extends HookConsumerWidget {
   const DashboardScreen({super.key});
@@ -45,6 +47,17 @@ class DashboardScreen extends HookConsumerWidget {
         }
       });
     });
+
+    // Initialize AI Service
+    useEffect(() {
+      SharedPreferences.getInstance().then((prefs) {
+        final key = prefs.getString('GEMINI_API_KEY');
+        if (key != null && key.isNotEmpty) {
+          ref.read(aiSummarizerProvider.notifier).initialize(key);
+        }
+      });
+      return null;
+    }, []);
 
     final isMiniMode = useState(false);
     final useDeepScan = useState(false);
@@ -164,7 +177,7 @@ class DashboardScreen extends HookConsumerWidget {
     return Column(
       children: [
         // 1. Custom Title Bar
-        _buildTitleBar(onShrink),
+        _buildTitleBar(context, ref, onShrink),
 
         // 2. Main Content
         Expanded(
@@ -269,6 +282,7 @@ class DashboardScreen extends HookConsumerWidget {
                                           ? Colors.white
                                           : Colors.orange,
                                     ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                   loading: () => const Text(
                                     'LOADING...',
@@ -286,6 +300,7 @@ class DashboardScreen extends HookConsumerWidget {
                                   ),
                                 ),
                               ),
+                              const SizedBox(width: 8),
                               const Icon(
                                 Icons.edit,
                                 size: 12,
@@ -648,7 +663,11 @@ class DashboardScreen extends HookConsumerWidget {
 
   // --- HELPER WIDGETS ---
 
-  Widget _buildTitleBar(VoidCallback onShrink) {
+  Widget _buildTitleBar(
+    BuildContext context,
+    WidgetRef ref,
+    VoidCallback onShrink,
+  ) {
     return GestureDetector(
       onPanStart: (_) => windowManager.startDragging(),
       child: Container(
@@ -672,11 +691,85 @@ class DashboardScreen extends HookConsumerWidget {
               ),
             ),
             const Spacer(),
+            _buildWindowBtn(
+              Icons.settings,
+              () => _showSettingsDialog(context, ref),
+            ),
+            const SizedBox(width: 8),
             _buildWindowBtn(Icons.remove, onShrink),
             const SizedBox(width: 8),
             _buildWindowBtn(Icons.close, () => windowManager.close()),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _showSettingsDialog(BuildContext context, WidgetRef ref) async {
+    final prefs = await SharedPreferences.getInstance();
+    final currentKey = prefs.getString('GEMINI_API_KEY') ?? '';
+    final controller = TextEditingController(text: currentKey);
+
+    if (!context.mounted) return;
+
+    await showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        shape: BeveledRectangleBorder(
+          side: const BorderSide(color: Color(0xFF00E5FF)),
+        ),
+        title: Text(
+          'SYSTEM CONFIGURATION',
+          style: GoogleFonts.orbitron(color: Colors.white, fontSize: 16),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'GEMINI API KEY',
+              style: GoogleFonts.orbitron(color: Colors.white70, fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: controller,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Enter API Key...',
+                hintStyle: const TextStyle(color: Colors.white30),
+                filled: true,
+                fillColor: Colors.black45,
+                border: const OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: Text(
+              'CANCEL',
+              style: GoogleFonts.orbitron(color: Colors.grey),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await prefs.setString('GEMINI_API_KEY', controller.text.trim());
+              // Re-initialize service
+              ref
+                  .read(aiSummarizerProvider.notifier)
+                  .initialize(controller.text.trim());
+              if (context.mounted) Navigator.pop(c);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF00E5FF).withOpacity(0.2),
+              foregroundColor: const Color(0xFF00E5FF),
+              shape: BeveledRectangleBorder(),
+            ),
+            child: Text('SAVE CONFIG', style: GoogleFonts.orbitron()),
+          ),
+        ],
       ),
     );
   }
@@ -734,15 +827,18 @@ class DashboardScreen extends HookConsumerWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: GoogleFonts.roboto(
-            // Switch to standard font
-            color: Colors.white70, // Brighter
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
+        Flexible(
+          child: Text(
+            label,
+            style: GoogleFonts.roboto(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
+        const SizedBox(width: 8),
         Text(
           value,
           style: GoogleFonts.orbitron(
