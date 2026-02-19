@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:omnicontext/features/dashboard/dashboard_screen.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -45,9 +46,18 @@ class OmniContextApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'OmniContext',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: Colors.transparent, // Allow Acrylic through
+        colorScheme: const ColorScheme.dark(
+          primary: Color(0xFF00E5FF), // Electric Cyan
+          secondary: Color(0xFF2979FF), // Electric Blue
+          surface: Color(0xFF1E1E1E), // Deep Dark Gray
+          onSurface: Color(0xFFE0E0E0),
+        ),
         useMaterial3: true,
+        textTheme: GoogleFonts.orbitronTextTheme(ThemeData.dark().textTheme),
       ),
       home: const DashboardScreen(),
     );

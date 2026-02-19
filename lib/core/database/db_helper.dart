@@ -93,6 +93,13 @@ class DatabaseHelper {
           linked_file_path TEXT, -- "lib/auth_service.dart"
           last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
       );
+
+      -- 6. CODE_INDEX (FTS5 Search Engine)
+      CREATE VIRTUAL TABLE IF NOT EXISTS code_index USING fts5(
+          file_path, 
+          content, 
+          last_modified UNINDEXED
+      );
     ''');
   }
 

@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:omnicontext/core/services/git_watcher_service.dart';
 
+import 'package:path/path.dart' as path;
+
 part 'context_generator_service.g.dart';
 
 @Riverpod(keepAlive: true)
@@ -47,8 +49,14 @@ $recentWork
   }
 
   Future<String> _scanRecentChanges(String projectPath) async {
-    final dir = Directory(projectPath);
-    if (!await dir.exists()) return '';
+    print('DEBUG: _scanRecentChanges called with path: $projectPath');
+    // 1. Scan the root project path (no longer restricted to lib/)
+    final rootDir = Directory(projectPath);
+
+    if (!await rootDir.exists()) {
+      print('DEBUG: Project directory does not exist!');
+      return '';
+    }
 
     // Find .dart files modified in last 24 hours
     final now = DateTime.now();
@@ -56,18 +64,9 @@ $recentWork
 
     List<FileSystemEntity> recentFiles = [];
 
-    await for (final entity in dir.list(recursive: true, followLinks: false)) {
-      if (entity is File && entity.path.endsWith('.dart')) {
-        try {
-          final stat = await entity.stat();
-          if (stat.modified.isAfter(oneDayAgo)) {
-            recentFiles.add(entity);
-          }
-        } catch (e) {
-          // Ignore access errors
-        }
-      }
-    }
+    // 2. Add Error Handling - Manual Recursion with Smart Ignore
+    print('DEBUG: Starting smart scan of ${rootDir.path}');
+    await _manualScan(rootDir, recentFiles, oneDayAgo);
 
     // Sort by modification time (newest first)
     recentFiles.sort((a, b) {
@@ -85,8 +84,8 @@ $recentWork
 
     for (final file in topFiles) {
       if (file is File) {
-        final path = file.path.replaceFirst(projectPath, '');
-        buffer.writeln('\n[File: $path]');
+        final relativePath = file.path.replaceFirst(projectPath, '');
+        buffer.writeln('\n[File: $relativePath]');
         try {
           final content = await file.readAsString();
           // Truncate if too long (optional, but good for safety)
@@ -102,5 +101,53 @@ $recentWork
     }
 
     return buffer.toString();
+  }
+
+  Future<void> _manualScan(
+    Directory dir,
+    List<FileSystemEntity> recentFiles,
+    DateTime cutoff,
+  ) async {
+    const ignoreList = [
+      'build',
+      '.git',
+      '.dart_tool',
+      'node_modules',
+      'android',
+      'ios',
+      'windows',
+      'macos',
+      'linux',
+    ];
+
+    try {
+      final entities = dir.list(recursive: false, followLinks: false);
+      await for (final entity in entities) {
+        if (entity is File) {
+          if (entity.path.endsWith('.dart') &&
+              !entity.path.contains('.g.dart') &&
+              !entity.path.contains('.freezed.dart')) {
+            try {
+              final stat = await entity.stat();
+              if (stat.modified.isAfter(cutoff)) {
+                recentFiles.add(entity);
+              }
+            } catch (_) {}
+          }
+        } else if (entity is Directory) {
+          final name = entity.uri.pathSegments.lastWhere(
+            (s) => s.isNotEmpty,
+            orElse: () => '',
+          );
+
+          if (!ignoreList.contains(name) && !name.startsWith('.')) {
+            await _manualScan(entity, recentFiles, cutoff);
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore access errors
+      print('Error scanning dir ${dir.path}: $e');
+    }
   }
 }

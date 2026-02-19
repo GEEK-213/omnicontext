@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:omnicontext/core/database/db_helper.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
@@ -40,9 +42,6 @@ class ContextRepository {
     );
 
     // Ensure Project Exists
-    // We use the projectPath as a simplified distinct key for now, or generate a UUID based on it.
-    // Ideally we should look it up.
-    // Let's check if project exists by path.
     final projectResult = db.select(
       'SELECT id FROM projects WHERE local_path = ?',
       [projectPath],
@@ -80,6 +79,125 @@ class ContextRepository {
       ORDER BY created_at DESC 
       LIMIT 10
     ''');
+    return results;
+  }
+
+  // --- FTS5 Search Logic ---
+
+  Future<int> indexLocalFiles(String projectPath) async {
+    final db = await _dbHelper.database;
+    // Scan the root project path (no longer restricted to lib/)
+    final dir = Directory(projectPath);
+    print('DEBUG: indexLocalFiles called with path: $projectPath');
+
+    if (!await dir.exists()) {
+      print('DEBUG: Project directory does not exist!');
+      return 0;
+    }
+
+    // 1. Scan .dart files
+    final List<File> dartFiles = [];
+    print('DEBUG: Starting smart scan of ${dir.path}');
+    await _scanDirectory(dir, dartFiles);
+
+    // 2. Sort by last modified (newest first) & take top 50
+    // This keeps the index small and relevant to active work
+    dartFiles.sort(
+      (a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()),
+    );
+    final topFiles = dartFiles.take(50).toList();
+
+    // 3. Re-build Index (Simple approach: Clear & Re-insert)
+    // Using a transaction for speed
+    db.execute('DELETE FROM code_index'); // Clear old index
+
+    int indexedCount = 0;
+
+    // Begin Transaction manually if sqlite3 supports it or just execute sequentially
+    // sqlite3 package supports prepared statements
+    final stmt = db.prepare(
+      'INSERT INTO code_index (file_path, content, last_modified) VALUES (?, ?, ?)',
+    );
+
+    for (final file in topFiles) {
+      try {
+        final content = await file.readAsString();
+        if (content.trim().isEmpty) continue;
+
+        stmt.execute([
+          file.path,
+          content,
+          file.lastModifiedSync().toIso8601String(),
+        ]);
+        indexedCount++;
+      } catch (e) {
+        print('Error indexing ${file.path}: $e');
+      }
+    }
+    stmt.dispose();
+
+    return indexedCount;
+  }
+
+  Future<void> _scanDirectory(Directory dir, List<File> dartFiles) async {
+    const ignoreList = [
+      'build',
+      '.git',
+      '.dart_tool',
+      'node_modules',
+      'android',
+      'ios',
+      'windows',
+      'macos',
+      'linux',
+    ];
+
+    try {
+      final entities = dir.list(recursive: false, followLinks: false);
+      await for (final entity in entities) {
+        if (entity is File) {
+          if (entity.path.endsWith('.dart') &&
+              !entity.path.contains('.g.dart') &&
+              !entity.path.contains('.freezed.dart')) {
+            dartFiles.add(entity);
+          }
+        } else if (entity is Directory) {
+          final name = entity.uri.pathSegments.lastWhere(
+            (s) => s.isNotEmpty,
+            orElse: () => '',
+          );
+          // Smart Ignore List
+          if (!ignoreList.contains(name) && !name.startsWith('.')) {
+            await _scanDirectory(entity, dartFiles);
+          }
+        }
+      }
+    } catch (e) {
+      print('Error scanning directory ${dir.path}: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> searchCodebase(String query) async {
+    final db = await _dbHelper.database;
+    if (query.trim().isEmpty) return [];
+
+    // FTS5 Match Query with Snippet
+    // snippet(code_index, 1, '<b>', '</b>', '...', 10)
+    // 1 = column index of 'content' (0 is file_path)
+    // 10 = max tokens in snippet
+    final results = db.select(
+      '''
+      SELECT 
+        file_path, 
+        snippet(code_index, 1, '<b>', '</b>', '...', 15) as match_snippet
+      FROM code_index 
+      WHERE code_index MATCH ? 
+      ORDER BY rank 
+      LIMIT 10;
+    ''',
+      [query],
+    );
+
     return results;
   }
 }
