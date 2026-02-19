@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:omnicontext/core/services/context_generator_service.dart';
+import 'package:omnicontext/core/services/shadow_prompter_service.dart';
 import 'package:omnicontext/features/dashboard/data/context_repository.dart';
 
 import 'package:flutter/services.dart';
@@ -20,6 +21,8 @@ class DashboardScreen extends HookConsumerWidget {
     final recentSnapshots = ref.watch(recentSnapshotsProvider);
     final figmaController = useTextEditingController();
     final driftStatusAsync = ref.watch(driftMonitorProvider);
+    // Keep shadow prompter alive
+    ref.watch(shadowPrompterProvider);
 
     // Listen to Sync Events
     ref.listen(syncEventsProvider, (previous, next) {
@@ -38,6 +41,7 @@ class DashboardScreen extends HookConsumerWidget {
     });
 
     final isMiniMode = useState(false);
+    final useDeepScan = useState(false);
 
     Future<void> setWindowSize(bool mini) async {
       isMiniMode.value = mini;
@@ -84,6 +88,7 @@ class DashboardScreen extends HookConsumerWidget {
                       figmaController,
                       driftStatusAsync,
                       recentSnapshots,
+                      useDeepScan,
                     ),
             ),
           ),
@@ -128,6 +133,7 @@ class DashboardScreen extends HookConsumerWidget {
     TextEditingController figmaController,
     AsyncValue<DriftStatus> driftStatusAsync,
     AsyncValue<List<Map<String, dynamic>>> recentSnapshots,
+    ValueNotifier<bool> useDeepScan,
   ) {
     return Column(
       children: [
@@ -237,6 +243,45 @@ class DashboardScreen extends HookConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 10),
+
+                // Deep Scan Toggle
+                Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.radar,
+                        color: Colors.cyanAccent,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Deep Scan (Non-Git)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      Switch(
+                        value: useDeepScan.value,
+                        onChanged: (val) => useDeepScan.value = val,
+                        activeColor: Colors.cyanAccent,
+                      ),
+                    ],
+                  ),
+                ),
+
                 ElevatedButton(
                   onPressed: () async {
                     // Keeping existing logic but referencing via ref.read
@@ -247,6 +292,7 @@ class DashboardScreen extends HookConsumerWidget {
                       final prompt = await service.generateContextPrompt(
                         projectPath,
                         figmaUrl: figmaController.text,
+                        deepScan: useDeepScan.value,
                       );
                       // Extract branch logic...
                       final branchLine = prompt
@@ -279,6 +325,57 @@ class DashboardScreen extends HookConsumerWidget {
                     }
                   },
                   child: const Text('Generate Context'),
+                ),
+
+                // Shadow Prompter Flash Button
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final shadowContext = ref.read(shadowPrompterProvider);
+                    if (shadowContext.isEmpty) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('⏳ Shadow context initializing...'),
+                          ),
+                        );
+                      }
+                      await ref
+                          .read(shadowPrompterProvider.notifier)
+                          .forceUpdate();
+                    }
+
+                    // Get fresh val after update
+                    // Get fresh val after update
+                    final currentShadow = ref.read(shadowPrompterProvider);
+
+                    if (currentShadow.isNotEmpty) {
+                      await Clipboard.setData(
+                        ClipboardData(text: currentShadow),
+                      );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('⚡ Shadow Context Flashed!'),
+                            backgroundColor: Colors.amber,
+                            duration: Duration(milliseconds: 800),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  icon: const Icon(
+                    Icons.flash_on,
+                    color: Colors.amber,
+                    size: 18,
+                  ),
+                  label: const Text(
+                    'Flash Context (Instant)',
+                    style: TextStyle(color: Colors.amber),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.amber),
+                  ),
                 ),
                 const SizedBox(height: 15),
                 const Text(
