@@ -2,7 +2,7 @@ from google import genai
 
 # Initialize the client
 # If using AI Studio, set your API key
-client = genai.Client(api_key='AIzaSyBzaYEXcYFD3UXTxUct9AQPI1G5ojHT2IQ')
+client = genai.Client(api_key='')
 
 # List all available models
 print("Available Models:")
