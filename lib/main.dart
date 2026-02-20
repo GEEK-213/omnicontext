@@ -59,7 +59,7 @@ class OmniContextApp extends StatelessWidget {
         useMaterial3: true,
         textTheme: GoogleFonts.orbitronTextTheme(ThemeData.dark().textTheme),
       ),
-      home: const DashboardScreen(),
+      home: DashboardScreen(),
     );
   }
 }

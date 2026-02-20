@@ -23,7 +23,7 @@ final driftServiceProvider = Provider<DriftService>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef DriftServiceRef = ProviderRef<DriftService>;
-String _$driftMonitorHash() => r'2341395d4fe0a4dd7bea5bf42003c3d1296cf510';
+String _$driftMonitorHash() => r'52821cdb8a59b0c496e0d5043058f94597ca4465';
 
 /// See also [DriftMonitor].
 @ProviderFor(DriftMonitor)

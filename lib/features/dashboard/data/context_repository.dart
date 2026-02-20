@@ -3,12 +3,13 @@ import 'dart:io';
 import 'package:omnicontext/core/database/db_helper.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
+import 'package:omnicontext/core/services/git_service.dart';
 
 part 'context_repository.g.dart';
 
 @Riverpod(keepAlive: true)
 ContextRepository contextRepository(ContextRepositoryRef ref) {
-  return ContextRepository();
+  return ContextRepository(ref);
 }
 
 @riverpod
@@ -20,8 +21,11 @@ Future<List<Map<String, dynamic>>> recentSnapshots(
 }
 
 class ContextRepository {
+  final ContextRepositoryRef _ref;
   final _dbHelper = DatabaseHelper();
   final _uuid = const Uuid();
+
+  ContextRepository(this._ref);
 
   Future<void> saveSnapshot({
     required String projectPath,
@@ -84,11 +88,26 @@ class ContextRepository {
 
   // --- FTS5 Search Logic ---
 
-  Future<int> indexLocalFiles(String projectPath) async {
-    final db = await _dbHelper.database;
-    // Scan the root project path (no longer restricted to lib/)
-    final dir = Directory(projectPath);
+  Future<int> indexGitFiles(String projectPath) async {
+    final gitService = _ref.read(gitServiceProvider);
+    final files = await gitService.getTrackedFiles(projectPath);
 
+    final List<File> dartFiles = [];
+    for (final path in files) {
+      // git paths are relative, e.g. "lib/main.dart"
+      final file = File('$projectPath${Platform.pathSeparator}$path');
+      if (file.path.endsWith('.dart') &&
+          !file.path.contains('.g.dart') &&
+          !file.path.contains('.freezed.dart')) {
+        dartFiles.add(file);
+      }
+    }
+
+    return _indexFiles(dartFiles);
+  }
+
+  Future<int> indexLocalFiles(String projectPath) async {
+    final dir = Directory(projectPath);
     if (!await dir.exists()) {
       return 0;
     }
@@ -97,21 +116,22 @@ class ContextRepository {
     final List<File> dartFiles = [];
     await _scanDirectory(dir, dartFiles);
 
+    return _indexFiles(dartFiles);
+  }
+
+  Future<int> _indexFiles(List<File> dartFiles) async {
+    final db = await _dbHelper.database;
+
     // 2. Sort by last modified (newest first) & take top 50
-    // This keeps the index small and relevant to active work
     dartFiles.sort(
       (a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()),
     );
     final topFiles = dartFiles.take(50).toList();
 
     // 3. Re-build Index (Simple approach: Clear & Re-insert)
-    // Using a transaction for speed
-    db.execute('DELETE FROM code_index'); // Clear old index
+    db.execute('DELETE FROM code_index');
 
     int indexedCount = 0;
-
-    // Begin Transaction manually if sqlite3 supports it or just execute sequentially
-    // sqlite3 package supports prepared statements
     final stmt = db.prepare(
       'INSERT INTO code_index (file_path, content, last_modified) VALUES (?, ?, ?)',
     );
@@ -178,10 +198,6 @@ class ContextRepository {
     final db = await _dbHelper.database;
     if (query.trim().isEmpty) return [];
 
-    // FTS5 Match Query with Snippet
-    // snippet(code_index, 1, '<b>', '</b>', '...', 10)
-    // 1 = column index of 'content' (0 is file_path)
-    // 10 = max tokens in snippet
     final results = db.select(
       '''
       SELECT 

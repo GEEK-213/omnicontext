@@ -27,6 +27,7 @@ class ContextGeneratorService {
     String projectPath, {
     String? figmaUrl,
     bool deepScan = false,
+    String strategy = 'local', // 'local' or 'git'
   }) async {
     final branch = await _gitWatcher.getCurrentBranch(projectPath);
 
@@ -37,7 +38,16 @@ class ContextGeneratorService {
     String recentWork = '';
     if (deepScan) {
       try {
-        recentWork = await _scanRecentChanges(projectPath);
+        if (strategy == 'git') {
+          // TODO: Implement actual git diff reading. For now, we fan-out to local scan if git fails or is empty,
+          // but strictly we should try git first.
+          // recentWork = await _scanGitChanges(projectPath);
+          recentWork = await _scanRecentChanges(
+            projectPath,
+          ); // Fallback for now until GitService is upgraded
+        } else {
+          recentWork = await _scanRecentChanges(projectPath);
+        }
       } catch (e) {
         recentWork = '\n\n--- RECENT WORK (SCAN FAILED) ---\nError: $e';
       }
@@ -47,6 +57,7 @@ class ContextGeneratorService {
 --- BEGIN PROJECT CONTEXT ---
 Project: $projectPath
 Branch: ${branch ?? 'Not a repo'}
+Strategy: $strategy
 System: Windows 11$figmaLine
 $recentWork
 --- END CONTEXT ---''';
