@@ -78,12 +78,15 @@ class DashboardScreen extends HookConsumerWidget {
       });
     });
 
-    // Initialize AI Service
+    // Initialize AI Service (warm up key cache on startup)
     useEffect(() {
       SharedPreferences.getInstance().then((prefs) {
-        final key = prefs.getString('GEMINI_API_KEY');
-        if (key != null && key.isNotEmpty) {
-          ref.read(aiSummarizerProvider.notifier).initialize(key);
+        final geminiKey = prefs.getString('GEMINI_API_KEY') ?? '';
+        final openAiKey = prefs.getString('OPENAI_API_KEY') ?? '';
+        if (geminiKey.isNotEmpty || openAiKey.isNotEmpty) {
+          ref
+              .read(aiSummarizerProvider.notifier)
+              .initialize(geminiKey, openAiKey: openAiKey);
         }
       });
       return null;
@@ -98,6 +101,10 @@ class DashboardScreen extends HookConsumerWidget {
     final searchController = useTextEditingController();
     final searchResults = useState<List<Map<String, dynamic>>>([]);
     final isIndexing = useState(false);
+
+    // AI Mediator State
+    final driftAnalysis = useState<String?>(null);
+    final isAnalyzingDrift = useState(false);
 
     Future<void> setWindowSize(bool mini) async {
       isMiniMode.value = mini;
@@ -158,6 +165,8 @@ class DashboardScreen extends HookConsumerWidget {
                         searchController,
                         searchResults,
                         isIndexing,
+                        driftAnalysis,
+                        isAnalyzingDrift,
                       ),
               ),
             ),
@@ -217,6 +226,8 @@ class DashboardScreen extends HookConsumerWidget {
     TextEditingController searchController,
     ValueNotifier<List<Map<String, dynamic>>> searchResults,
     ValueNotifier<bool> isIndexing,
+    ValueNotifier<String?> driftAnalysis,
+    ValueNotifier<bool> isAnalyzingDrift,
   ) {
     return Column(
       children: [
@@ -246,6 +257,8 @@ class DashboardScreen extends HookConsumerWidget {
                   searchController,
                   searchResults,
                   isIndexing,
+                  driftAnalysis,
+                  isAnalyzingDrift,
                 ),
               ),
 
@@ -484,71 +497,230 @@ class DashboardScreen extends HookConsumerWidget {
     TextEditingController searchController,
     ValueNotifier<List<Map<String, dynamic>>> searchResults,
     ValueNotifier<bool> isIndexing,
+    ValueNotifier<String?> driftAnalysis,
+    ValueNotifier<bool> isAnalyzingDrift,
   ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-      color: Colors.black.withOpacity(0.2), // Darker center
+      color: Colors.black.withOpacity(0.2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 12),
-          // 1. WARNING BANNER
+          // 1. DRIFT WARNING BANNER + AI MEDIATOR
           driftStatusAsync.when(
             data: (status) {
               if (status == DriftStatus.behind ||
                   status == DriftStatus.diverged) {
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF3E2723).withOpacity(0.8),
-                    border: Border.all(color: Colors.orangeAccent),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.warning_amber,
-                        color: Colors.orangeAccent,
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // ── Orange drift warning ─────────────────────────────────
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3E2723).withOpacity(0.85),
+                        border: Border.all(color: Colors.orangeAccent),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.warning_amber_rounded,
+                            color: Colors.orangeAccent,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'DRIFT DETECTED',
+                                  style: GoogleFonts.orbitron(
+                                    color: Colors.orangeAccent,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 11,
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                                Text(
+                                  'Remote is ahead — pull required.',
+                                  style: GoogleFonts.roboto(
+                                    color: Colors.orange.shade100,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // ── AI Analyze button / loading state ──────────────────
+                    if (isAnalyzingDrift.value)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                          horizontal: 14,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.3),
+                          border: Border.all(
+                            color: Colors.cyanAccent.withOpacity(0.4),
+                          ),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
-                              'DRIFT WARNING DETECTED',
-                              style: GoogleFonts.orbitron(
-                                color: Colors.orangeAccent,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
+                            const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.cyanAccent,
                               ),
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(width: 12),
                             Text(
-                              'Local repository is out of sync with remote origin.',
-                              style: GoogleFonts.roboto(
-                                color: Colors.orange.shade100,
+                              'Qwen is reading remote changes...',
+                              style: GoogleFonts.firaCode(
+                                color: Colors.cyanAccent,
                                 fontSize: 11,
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      TextButton(
-                        onPressed: () {}, // TODO: Implement Drift Fix
-                        child: Text(
-                          'RESOLVE',
-                          style: GoogleFonts.orbitron(
-                            color: Colors.orangeAccent,
+                      )
+                    else
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            final projectPath = activeProjectAsync.value;
+                            if (projectPath == null) return;
+                            isAnalyzingDrift.value = true;
+                            driftAnalysis.value = null;
+                            try {
+                              final rawDiff = await ref
+                                  .read(driftServiceProvider)
+                                  .getRemoteDiffSummary(projectPath);
+                              final explanation = await ref
+                                  .read(aiSummarizerProvider.notifier)
+                                  .summarizeDrift(rawDiff);
+                              driftAnalysis.value = explanation;
+                            } catch (e) {
+                              driftAnalysis.value = '❌ Error: $e';
+                            } finally {
+                              isAnalyzingDrift.value = false;
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            foregroundColor: Colors.cyanAccent,
+                            side: const BorderSide(
+                              color: Colors.cyanAccent,
+                              width: 1,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                          ),
+                          icon: const Icon(Icons.smart_toy, size: 16),
+                          label: Text(
+                            'AI Analyze Drift',
+                            style: GoogleFonts.orbitron(fontSize: 11),
                           ),
                         ),
                       ),
-                    ],
-                  ),
+
+                    // ── AI Mediator result panel ─────────────────────────────
+                    if (driftAnalysis.value != null &&
+                        driftAnalysis.value!.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0A1628),
+                          border: Border.all(
+                            color: Colors.cyanAccent.withOpacity(0.5),
+                          ),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.cyanAccent.withOpacity(0.08),
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(6),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.smart_toy,
+                                    size: 14,
+                                    color: Colors.cyanAccent,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'AI MEDIATOR — QWEN ANALYSIS',
+                                    style: GoogleFonts.orbitron(
+                                      color: Colors.cyanAccent,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.4,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  IconButton(
+                                    onPressed: () => driftAnalysis.value = null,
+                                    icon: const Icon(
+                                      Icons.close_rounded,
+                                      size: 14,
+                                      color: Colors.white38,
+                                    ),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    tooltip: 'Dismiss',
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: SelectableText(
+                                driftAnalysis.value!,
+                                style: GoogleFonts.roboto(
+                                  color: Colors.white.withOpacity(0.85),
+                                  fontSize: 12,
+                                  height: 1.7,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
                 );
               }
-              return const SizedBox.shrink(); // No warning
+              return const SizedBox.shrink();
             },
             loading: () => const SizedBox.shrink(),
             error: (_, __) => const SizedBox.shrink(),

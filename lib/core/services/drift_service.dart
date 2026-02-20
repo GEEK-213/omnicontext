@@ -66,6 +66,40 @@ class DriftService {
       return DriftStatus.error;
     }
   }
+
+  /// Returns raw `git diff --name-status HEAD..@{u}` output.
+  /// This shows which files the remote has changed that haven't been pulled yet.
+  Future<String> getRemoteDiffSummary(String projectPath) async {
+    try {
+      // Ensure we have the latest remote state
+      await Process.run(
+        'git',
+        ['fetch'],
+        workingDirectory: projectPath,
+        runInShell: true,
+      );
+
+      final result = await Process.run(
+        'git',
+        ['diff', '--name-status', 'HEAD..@{u}'],
+        workingDirectory: projectPath,
+        runInShell: true,
+      );
+
+      if (result.exitCode != 0) {
+        return 'No upstream branch configured or not a git repository.';
+      }
+
+      final output = result.stdout.toString().trim();
+      if (output.isEmpty) {
+        return 'No differences found between local HEAD and remote.';
+      }
+
+      return output;
+    } catch (e) {
+      return 'Error fetching diff: $e';
+    }
+  }
 }
 
 @riverpod

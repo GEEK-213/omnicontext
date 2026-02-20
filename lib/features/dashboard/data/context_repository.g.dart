@@ -6,7 +6,7 @@ part of 'context_repository.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$contextRepositoryHash() => r'8981ead6909833ce050a8a6ed4b307881a92abc2';
+String _$contextRepositoryHash() => r'5399ac2eec0f0189d1fc1b58a53e0bbebd8be7e7';
 
 /// See also [contextRepository].
 @ProviderFor(contextRepository)

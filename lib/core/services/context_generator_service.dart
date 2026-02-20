@@ -86,7 +86,7 @@ $recentWork
     });
 
     // Take top 5
-    final topFiles = recentFiles.take(5);
+    final topFiles = recentFiles.take(5).toList();
 
     if (topFiles.isEmpty) return '';
 
@@ -94,43 +94,55 @@ $recentWork
     buffer.writeln('\n--- RECENT WORK (AUTO-SCANNED) ---');
     buffer.writeln('Files modified in the last 24 hours (Top 5):');
 
-    int processedCount = 0;
+    // ── Step 1: Read all file contents and build a combined batch string ──────
+    final batchBuffer = StringBuffer();
+    final Map<String, String> fileContents = {}; // relativePath → content
+
     for (final file in topFiles) {
-      processedCount++;
       if (file is File) {
         final relativePath = file.path.replaceFirst(projectPath, '');
-        buffer.writeln('\n[File: $relativePath]');
-
         try {
           final content = await file.readAsString();
-
-          bool aiSuccess = false;
-          if (_aiSummarizer.isConfigured) {
-            final summary = await _aiSummarizer.summarizeCode(content);
-            if (!summary.startsWith('Error')) {
-              buffer.writeln('AI SUMMARY:');
-              buffer.writeln(summary);
-              aiSuccess = true;
-
-              // Add delay to respect free tier limits
-              if (processedCount < topFiles.length) {
-                await Future.delayed(const Duration(seconds: 4));
-              }
-            } else {
-              buffer.writeln('// AI ERROR: ${summary.split(':').last.trim()}');
-            }
+          fileContents[relativePath] = content;
+          // Format for the batch prompt
+          batchBuffer.writeln('--- File: $relativePath ---');
+          // Cap each file at 3 000 chars to keep the prompt manageable
+          if (content.length > 3000) {
+            batchBuffer.writeln(
+              '${content.substring(0, 3000)}\n... (truncated)',
+            );
+          } else {
+            batchBuffer.writeln(content);
           }
+          batchBuffer.writeln();
+        } catch (_) {
+          fileContents[relativePath] = '(Error reading file)';
+        }
+      }
+    }
 
-          if (!aiSuccess) {
-            // Fallback to raw code
-            if (content.length > 5000) {
-              buffer.writeln('${content.substring(0, 5000)}\n... (truncated)');
-            } else {
-              buffer.writeln(content);
-            }
-          }
-        } catch (e) {
-          buffer.writeln('(Error reading content)');
+    // ── Step 2: ONE single AI call for the entire batch ───────────────────────
+    String? batchSummary;
+    if (_aiSummarizer.isConfigured && batchBuffer.isNotEmpty) {
+      final result = await _aiSummarizer.summarizeCode(batchBuffer.toString());
+      if (!result.startsWith('Error')) {
+        batchSummary = result;
+      }
+    }
+
+    // ── Step 3: Write output — AI summary or individual raw fallbacks ─────────
+    if (batchSummary != null) {
+      buffer.writeln('\nAI BATCH SUMMARY (${fileContents.length} files):');
+      buffer.writeln(batchSummary);
+    } else {
+      // Fallback: include raw contents per-file
+      for (final entry in fileContents.entries) {
+        buffer.writeln('\n[File: ${entry.key}]');
+        final content = entry.value;
+        if (content.length > 5000) {
+          buffer.writeln('${content.substring(0, 5000)}\n... (truncated)');
+        } else {
+          buffer.writeln(content);
         }
       }
     }
