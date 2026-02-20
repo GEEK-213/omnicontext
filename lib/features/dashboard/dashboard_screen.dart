@@ -739,17 +739,20 @@ class DashboardScreen extends HookConsumerWidget {
           const SizedBox(height: 16),
           // 3. CONTEXT HISTORY (Title)
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'CONTEXT HISTORY',
-                style: GoogleFonts.orbitron(
-                  color: Colors.white54,
-                  fontSize: 11,
-                  letterSpacing: 1.5,
-                  fontWeight: FontWeight.bold,
+              Flexible(
+                child: Text(
+                  'CONTEXT HISTORY',
+                  style: GoogleFonts.orbitron(
+                    color: Colors.white54,
+                    fontSize: 11,
+                    letterSpacing: 1.5,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const Spacer(),
               Text(
                 'View All',
                 style: GoogleFonts.roboto(
@@ -1045,13 +1048,15 @@ class DashboardScreen extends HookConsumerWidget {
                   const SizedBox(height: 12),
                   // DEEP SCAN TOGGLE
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'DEEP SCAN MODE',
-                        style: GoogleFonts.orbitron(
-                          color: Colors.white70,
-                          fontSize: 10,
+                      Flexible(
+                        child: Text(
+                          'DEEP SCAN MODE',
+                          style: GoogleFonts.orbitron(
+                            color: Colors.white70,
+                            fontSize: 10,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       Switch(
@@ -1470,94 +1475,102 @@ class DashboardScreen extends HookConsumerWidget {
             children: [
               const Icon(Icons.psychology, size: 16, color: Color(0xFF00E5FF)),
               const SizedBox(width: 8),
-              Text(
-                'INTELLIGENCE UNIT',
-                style: GoogleFonts.orbitron(
-                  color: const Color(0xFF00E5FF),
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.5,
+              Flexible(
+                child: Text(
+                  'INTELLIGENCE UNIT',
+                  style: GoogleFonts.orbitron(
+                    color: const Color(0xFF00E5FF),
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.5,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               const Spacer(),
               if (isIndexing.value)
-                SizedBox(
+                const SizedBox(
                   width: 12,
                   height: 12,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: const Color(0xFF00E5FF),
+                    color: Color(0xFF00E5FF),
                   ),
                 )
               else
-                Row(
-                  children: [
-                    TextButton(
-                      onPressed: () async {
-                        isIndexing.value = true;
-                        try {
-                          final repo = ref.read(contextRepositoryProvider);
-                          final count = await repo.indexLocalFiles(projectPath);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Indexed $count files'),
-                                backgroundColor: const Color(0xFF00E5FF),
-                              ),
+                // FittedBox auto-scales buttons down to fit available width
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextButton(
+                        onPressed: () async {
+                          isIndexing.value = true;
+                          try {
+                            final repo = ref.read(contextRepositoryProvider);
+                            final count = await repo.indexLocalFiles(
+                              projectPath,
                             );
-                          }
-                        } finally {
-                          isIndexing.value = false;
-                        }
-                      },
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: Text(
-                        'RE-INDEX LOCAL',
-                        style: GoogleFonts.firaCode(
-                          fontSize: 10,
-                          color: Colors.white38,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    TextButton(
-                      onPressed: () async {
-                        isIndexing.value = true;
-                        try {
-                          final repo = ref.read(contextRepositoryProvider);
-                          final count = await repo.indexGitFiles(projectPath);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Indexed $count git-tracked files',
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Indexed $count files'),
+                                  backgroundColor: const Color(0xFF00E5FF),
                                 ),
-                                backgroundColor: const Color(0xFF00E5FF),
-                              ),
-                            );
+                              );
+                            }
+                          } finally {
+                            isIndexing.value = false;
                           }
-                        } finally {
-                          isIndexing.value = false;
-                        }
-                      },
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: Text(
-                        'RE-INDEX GIT',
-                        style: GoogleFonts.firaCode(
-                          fontSize: 10,
-                          color: Colors.white38,
+                        },
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          'LOCAL',
+                          style: GoogleFonts.firaCode(
+                            fontSize: 10,
+                            color: Colors.white38,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                      TextButton(
+                        onPressed: () async {
+                          isIndexing.value = true;
+                          try {
+                            final repo = ref.read(contextRepositoryProvider);
+                            final count = await repo.indexGitFiles(projectPath);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Indexed $count git files'),
+                                  backgroundColor: const Color(0xFF00E5FF),
+                                ),
+                              );
+                            }
+                          } finally {
+                            isIndexing.value = false;
+                          }
+                        },
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          'GIT',
+                          style: GoogleFonts.firaCode(
+                            fontSize: 10,
+                            color: Colors.white38,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
             ],
           ),
