@@ -6,7 +6,7 @@ part of 'shadow_prompter_service.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$shadowPrompterHash() => r'330f7a94f2b8376b3c0304d145429e6b1b3b5eec';
+String _$shadowPrompterHash() => r'b6967d62ea8d806f0404dc41f7c14f3f6c7c8a9b';
 
 /// See also [ShadowPrompter].
 @ProviderFor(ShadowPrompter)

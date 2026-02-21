@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:omnicontext/core/providers/active_project_provider.dart';
 
 part 'drift_service.g.dart';
 
@@ -65,6 +66,114 @@ class DriftService {
       return DriftStatus.error;
     }
   }
+
+  /// Returns raw `git diff --name-status HEAD..@{u}` output.
+  /// This shows which files the remote has changed that haven't been pulled yet.
+  Future<String> getRemoteDiffSummary(String projectPath) async {
+    try {
+      // Ensure we have the latest remote state
+      await Process.run(
+        'git',
+        ['fetch'],
+        workingDirectory: projectPath,
+        runInShell: true,
+      );
+
+      final result = await Process.run(
+        'git',
+        ['diff', '--name-status', 'HEAD..@{u}'],
+        workingDirectory: projectPath,
+        runInShell: true,
+      );
+
+      if (result.exitCode != 0) {
+        return 'No upstream branch configured or not a git repository.';
+      }
+
+      final output = result.stdout.toString().trim();
+      if (output.isEmpty) {
+        return 'No differences found between local HEAD and remote.';
+      }
+
+      return output;
+    } catch (e) {
+      return 'Error fetching diff: $e';
+    }
+  }
+
+  /// Pulls remote changes into the current branch
+  Future<String> pullAndMerge(String projectPath) async {
+    try {
+      final result = await Process.run(
+        'git',
+        ['pull'],
+        workingDirectory: projectPath,
+        runInShell: true,
+      );
+
+      final stdout = result.stdout.toString().trim();
+      final stderr = result.stderr.toString().trim();
+
+      if (result.exitCode != 0) {
+        return stderr.isNotEmpty
+            ? stderr
+            : 'Git pull failed with code ${result.exitCode}';
+      }
+      return stdout.isNotEmpty ? stdout : 'Already up to date.';
+    } catch (e) {
+      return 'Command error: $e';
+    }
+  }
+
+  /// Stashes local changes, pulls remote changes, and pops the stash
+  Future<String> stashAndPull(String projectPath) async {
+    try {
+      final stashRes = await Process.run(
+        'git',
+        ['stash'],
+        workingDirectory: projectPath,
+        runInShell: true,
+      );
+
+      final pullRes = await Process.run(
+        'git',
+        ['pull'],
+        workingDirectory: projectPath,
+        runInShell: true,
+      );
+
+      final popRes = await Process.run(
+        'git',
+        ['stash', 'pop'],
+        workingDirectory: projectPath,
+        runInShell: true,
+      );
+
+      final combined = StringBuffer();
+      combined.writeln('--- Stash ---');
+      combined.writeln(
+        stashRes.stdout.toString().trim().isNotEmpty
+            ? stashRes.stdout.toString().trim()
+            : stashRes.stderr.toString().trim(),
+      );
+      combined.writeln('--- Pull ---');
+      combined.writeln(
+        pullRes.stdout.toString().trim().isNotEmpty
+            ? pullRes.stdout.toString().trim()
+            : pullRes.stderr.toString().trim(),
+      );
+      combined.writeln('--- Pop ---');
+      combined.writeln(
+        popRes.stdout.toString().trim().isNotEmpty
+            ? popRes.stdout.toString().trim()
+            : popRes.stderr.toString().trim(),
+      );
+
+      return combined.toString();
+    } catch (e) {
+      return 'Command error: $e';
+    }
+  }
 }
 
 @riverpod
@@ -74,6 +183,7 @@ class DriftMonitor extends _$DriftMonitor with WidgetsBindingObserver {
   @override
   Future<DriftStatus> build() async {
     final service = ref.watch(driftServiceProvider);
+    final activeProject = ref.watch(activeProjectProvider);
 
     // Add lifecycle observer to check when app comes to foreground
     WidgetsBinding.instance.addObserver(this);
@@ -88,7 +198,9 @@ class DriftMonitor extends _$DriftMonitor with WidgetsBindingObserver {
       ref.invalidateSelf();
     });
 
-    final projectPath = Directory.current.path;
+    final projectPath = activeProject.value;
+    if (projectPath == null) return DriftStatus.unknown;
+
     return service.checkDrift(projectPath);
   }
 

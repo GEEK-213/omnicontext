@@ -3,6 +3,8 @@ import 'package:flutter_acrylic/flutter_acrylic.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:omnicontext/features/dashboard/dashboard_screen.dart';
+import 'package:omnicontext/features/onboarding/onboarding_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
 void main() async {
@@ -36,11 +38,21 @@ void main() async {
     await windowManager.setPosition(const Offset(100, 100));
   });
 
-  runApp(const ProviderScope(child: OmniContextApp()));
+  // Determine first-run state before building UI
+  final prefs = await SharedPreferences.getInstance();
+  final hasCompletedOnboarding =
+      prefs.getBool('hasCompletedOnboarding') ?? false;
+
+  runApp(
+    ProviderScope(
+      child: OmniContextApp(showOnboarding: !hasCompletedOnboarding),
+    ),
+  );
 }
 
 class OmniContextApp extends StatelessWidget {
-  const OmniContextApp({super.key});
+  final bool showOnboarding;
+  const OmniContextApp({super.key, required this.showOnboarding});
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +71,11 @@ class OmniContextApp extends StatelessWidget {
         useMaterial3: true,
         textTheme: GoogleFonts.orbitronTextTheme(ThemeData.dark().textTheme),
       ),
-      home: const DashboardScreen(),
+      routes: {
+        '/dashboard': (_) => DashboardScreen(),
+        '/onboarding': (_) => OnboardingScreen(),
+      },
+      home: showOnboarding ? OnboardingScreen() : DashboardScreen(),
     );
   }
 }

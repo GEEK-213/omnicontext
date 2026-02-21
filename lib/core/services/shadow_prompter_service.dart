@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:io';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:omnicontext/core/services/context_generator_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:omnicontext/core/providers/active_project_provider.dart';
+import 'package:omnicontext/core/services/context_generator_service.dart';
 
 part 'shadow_prompter_service.g.dart';
 
@@ -29,25 +29,30 @@ class ShadowPrompter extends _$ShadowPrompter {
   }
 
   Future<void> _generateShadowContext() async {
+    // Use the active project selected by the user, not the app's install dir
+    final activeProject = ref.read(activeProjectProvider);
+    final projectPath = activeProject.value;
+
+    if (projectPath == null) {
+      debugPrint('ShadowPrompter: no active project selected, skipping.');
+      return;
+    }
+
     final service = ref.read(contextGeneratorServiceProvider);
-    final projectPath = Directory.current.path;
 
     try {
-      // Background generation with deep scan enabled
       final context = await service.generateContextPrompt(
         projectPath,
         deepScan: true,
-        figmaUrl:
-            '', // Optional: could inject if we had access, but for shadow it's fine empty or we need a provider for Figma URL
+        figmaUrl: '',
       );
       state = context;
     } catch (e) {
-      // Silently fail or log
-      print('Shadow Prompter Error: $e');
+      debugPrint('ShadowPrompter error: $e');
     }
   }
 
-  // Allow manual trigger (e.g., "Flash" button if user wants to force update)
+  /// Allow manual trigger via "Flash" button
   Future<void> forceUpdate() async {
     await _generateShadowContext();
   }

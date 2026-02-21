@@ -3,12 +3,16 @@ import 'dart:io';
 import 'package:omnicontext/core/database/db_helper.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
+import 'package:omnicontext/core/services/vector_db_service.dart';
+import 'package:omnicontext/core/services/embedding_service.dart';
+import 'package:omnicontext/core/models/code_chunk.dart';
+import 'package:omnicontext/core/services/git_service.dart';
 
 part 'context_repository.g.dart';
 
 @Riverpod(keepAlive: true)
 ContextRepository contextRepository(ContextRepositoryRef ref) {
-  return ContextRepository();
+  return ContextRepository(ref);
 }
 
 @riverpod
@@ -20,8 +24,11 @@ Future<List<Map<String, dynamic>>> recentSnapshots(
 }
 
 class ContextRepository {
+  final ContextRepositoryRef _ref;
   final _dbHelper = DatabaseHelper();
   final _uuid = const Uuid();
+
+  ContextRepository(this._ref);
 
   Future<void> saveSnapshot({
     required String projectPath,
@@ -84,57 +91,81 @@ class ContextRepository {
 
   // --- FTS5 Search Logic ---
 
-  Future<int> indexLocalFiles(String projectPath) async {
-    final db = await _dbHelper.database;
-    // Scan the root project path (no longer restricted to lib/)
-    final dir = Directory(projectPath);
-    print('DEBUG: indexLocalFiles called with path: $projectPath');
+  Future<int> indexGitFiles(String projectPath) async {
+    final gitService = _ref.read(gitServiceProvider);
+    final files = await gitService.getTrackedFiles(projectPath);
 
+    final List<File> dartFiles = [];
+    for (final path in files) {
+      // git paths are relative, e.g. "lib/main.dart"
+      final file = File('$projectPath${Platform.pathSeparator}$path');
+      if (file.path.endsWith('.dart') &&
+          !file.path.contains('.g.dart') &&
+          !file.path.contains('.freezed.dart')) {
+        dartFiles.add(file);
+      }
+    }
+
+    return _indexFiles(dartFiles);
+  }
+
+  Future<int> indexLocalFiles(String projectPath) async {
+    final dir = Directory(projectPath);
     if (!await dir.exists()) {
-      print('DEBUG: Project directory does not exist!');
       return 0;
     }
 
     // 1. Scan .dart files
     final List<File> dartFiles = [];
-    print('DEBUG: Starting smart scan of ${dir.path}');
     await _scanDirectory(dir, dartFiles);
 
-    // 2. Sort by last modified (newest first) & take top 50
-    // This keeps the index small and relevant to active work
+    return _indexFiles(dartFiles);
+  }
+
+  Future<int> _indexFiles(List<File> dartFiles) async {
+    final vectorDb = _ref.read(vectorDbServiceProvider.notifier);
+    final embeddingService = _ref.read(embeddingServiceProvider.notifier);
+
+    // 2. Sort by last modified (newest first) & take top 10 to avoid excessive API limits
     dartFiles.sort(
       (a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()),
     );
-    final topFiles = dartFiles.take(50).toList();
+    final topFiles = dartFiles.take(15).toList();
 
-    // 3. Re-build Index (Simple approach: Clear & Re-insert)
-    // Using a transaction for speed
-    db.execute('DELETE FROM code_index'); // Clear old index
+    // 3. Re-build Index (Clear old vectors)
+    await vectorDb.clear();
 
     int indexedCount = 0;
-
-    // Begin Transaction manually if sqlite3 supports it or just execute sequentially
-    // sqlite3 package supports prepared statements
-    final stmt = db.prepare(
-      'INSERT INTO code_index (file_path, content, last_modified) VALUES (?, ?, ?)',
-    );
 
     for (final file in topFiles) {
       try {
         final content = await file.readAsString();
         if (content.trim().isEmpty) continue;
 
-        stmt.execute([
-          file.path,
-          content,
-          file.lastModifiedSync().toIso8601String(),
-        ]);
+        // Restrict chunk sizes to standard window to respect prompt tokens and rate limits.
+        final chunkText = content.length > 2000
+            ? content.substring(0, 2000)
+            : content;
+
+        final embedding = await embeddingService.getEmbedding(chunkText);
+
+        await vectorDb.addChunk(
+          CodeChunk(
+            filePath: file.path,
+            content: chunkText,
+            embedding: embedding,
+          ),
+        );
+
         indexedCount++;
+        // Very slight artificial delay to gracefully respect potential API rate bounds.
+        await Future.delayed(const Duration(milliseconds: 300));
       } catch (e) {
         print('Error indexing ${file.path}: $e');
+        if (e.toString().contains('API Key'))
+          rethrow; // Elevate critical auth errors
       }
     }
-    stmt.dispose();
 
     return indexedCount;
   }
@@ -178,26 +209,28 @@ class ContextRepository {
   }
 
   Future<List<Map<String, dynamic>>> searchCodebase(String query) async {
-    final db = await _dbHelper.database;
     if (query.trim().isEmpty) return [];
 
-    // FTS5 Match Query with Snippet
-    // snippet(code_index, 1, '<b>', '</b>', '...', 10)
-    // 1 = column index of 'content' (0 is file_path)
-    // 10 = max tokens in snippet
-    final results = db.select(
-      '''
-      SELECT 
-        file_path, 
-        snippet(code_index, 1, '<b>', '</b>', '...', 15) as match_snippet
-      FROM code_index 
-      WHERE code_index MATCH ? 
-      ORDER BY rank 
-      LIMIT 10;
-    ''',
-      [query],
-    );
+    final vectorDb = _ref.read(vectorDbServiceProvider.notifier);
+    final embeddingService = _ref.read(embeddingServiceProvider.notifier);
 
-    return results;
+    try {
+      final queryEmbedding = await embeddingService.getEmbedding(query);
+      final results = await vectorDb.search(queryEmbedding, limit: 10);
+
+      return results.map((chunk) {
+        return {
+          'file_path': chunk.filePath,
+          'match_snippet': chunk.content.length > 150
+              ? '${chunk.content.substring(0, 150).replaceAll('\n', ' ')}...'
+              : chunk.content.replaceAll('\n', ' '),
+          'full_snippet':
+              chunk.content, // Provide full snippet if the UI needs it
+        };
+      }).toList();
+    } catch (e) {
+      print('Semantic Search Error: $e');
+      throw Exception('Search failed: $e');
+    }
   }
 }
