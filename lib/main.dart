@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:omnicontext/features/dashboard/dashboard_screen.dart';
 import 'package:omnicontext/features/onboarding/onboarding_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
 void main() async {
@@ -36,23 +36,83 @@ void main() async {
     await windowManager.focus();
     // Position it roughly on the right side of the screen (optional, user can move it)
     await windowManager.setPosition(const Offset(100, 100));
+    // Prevent default close so we can hide to tray instead
+    await windowManager.setPreventClose(true);
   });
 
-  // Determine first-run state before building UI
-  final prefs = await SharedPreferences.getInstance();
-  final hasCompletedOnboarding =
-      prefs.getBool('hasCompletedOnboarding') ?? false;
-
-  runApp(
-    ProviderScope(
-      child: OmniContextApp(showOnboarding: !hasCompletedOnboarding),
-    ),
-  );
+  // Always show onboarding to allow project selection on startup
+  runApp(const ProviderScope(child: OmniContextApp(showOnboarding: true)));
 }
 
-class OmniContextApp extends StatelessWidget {
+class OmniContextApp extends StatefulWidget {
   final bool showOnboarding;
   const OmniContextApp({super.key, required this.showOnboarding});
+
+  @override
+  State<OmniContextApp> createState() => _OmniContextAppState();
+}
+
+class _OmniContextAppState extends State<OmniContextApp>
+    with WindowListener, TrayListener {
+  @override
+  void initState() {
+    super.initState();
+    windowManager.addListener(this);
+    trayManager.addListener(this);
+    _initSystemTray();
+  }
+
+  Future<void> _initSystemTray() async {
+    // Only set icon on desktop platforms, tray_manager handles windows nicely with .ico
+    await trayManager.setIcon('assets/app_icon.ico');
+    await trayManager.setToolTip('OmniContext');
+    Menu menu = Menu(
+      items: [
+        MenuItem(key: 'show_window', label: 'Show HUD'),
+        MenuItem.separator(),
+        MenuItem(key: 'exit_app', label: 'Quit OmniContext'),
+      ],
+    );
+    await trayManager.setContextMenu(menu);
+  }
+
+  @override
+  void dispose() {
+    windowManager.removeListener(this);
+    trayManager.removeListener(this);
+    super.dispose();
+  }
+
+  @override
+  void onWindowClose() async {
+    bool isPreventClose = await windowManager.isPreventClose();
+    if (isPreventClose) {
+      windowManager.hide();
+    }
+  }
+
+  @override
+  void onTrayIconMouseDown() {
+    // Left click shows the window
+    windowManager.show();
+    windowManager.focus();
+  }
+
+  @override
+  void onTrayIconRightMouseDown() {
+    // Right click shows the context menu
+    trayManager.popUpContextMenu();
+  }
+
+  @override
+  void onTrayMenuItemClick(MenuItem menuItem) {
+    if (menuItem.key == 'show_window') {
+      windowManager.show();
+      windowManager.focus();
+    } else if (menuItem.key == 'exit_app') {
+      windowManager.destroy(); // bypass prevent close to actually exit
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +135,7 @@ class OmniContextApp extends StatelessWidget {
         '/dashboard': (_) => DashboardScreen(),
         '/onboarding': (_) => OnboardingScreen(),
       },
-      home: showOnboarding ? OnboardingScreen() : DashboardScreen(),
+      home: widget.showOnboarding ? OnboardingScreen() : DashboardScreen(),
     );
   }
 }

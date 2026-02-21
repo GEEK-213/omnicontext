@@ -20,6 +20,7 @@ import 'package:omnicontext/features/templates/template_picker_sheet.dart';
 import 'package:omnicontext/core/services/ai_summarizer_service.dart';
 import 'package:omnicontext/core/services/git_service.dart';
 import 'package:omnicontext/core/services/commit_message_service.dart';
+import 'package:omnicontext/core/services/embedding_service.dart';
 
 // --- PROVIDERS FOR REAL DATA ---
 final gitBranchesProvider = FutureProvider.autoDispose
@@ -89,6 +90,9 @@ class DashboardScreen extends HookConsumerWidget {
           ref
               .read(aiSummarizerProvider.notifier)
               .initialize(geminiKey, openAiKey: openAiKey);
+        }
+        if (geminiKey.isNotEmpty) {
+          ref.read(embeddingServiceProvider.notifier).initialize(geminiKey);
         }
       });
       return null;
@@ -1801,6 +1805,17 @@ class DashboardScreen extends HookConsumerWidget {
                                 ),
                               );
                             }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    e.toString().replaceAll('Exception: ', ''),
+                                  ),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
                           } finally {
                             isIndexing.value = false;
                           }
@@ -1829,6 +1844,17 @@ class DashboardScreen extends HookConsumerWidget {
                                 SnackBar(
                                   content: Text('Indexed $count git files'),
                                   backgroundColor: const Color(0xFF00E5FF),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    e.toString().replaceAll('Exception: ', ''),
+                                  ),
+                                  backgroundColor: Colors.red,
                                 ),
                               );
                             }
@@ -1881,13 +1907,32 @@ class DashboardScreen extends HookConsumerWidget {
               ),
               onSubmitted: (query) async {
                 if (query.trim().isEmpty) return;
-                // isIndexing.value = true;
+                isIndexing.value = true;
                 try {
                   final repo = ref.read(contextRepositoryProvider);
                   final results = await repo.searchCodebase(query);
                   searchResults.value = results;
+
+                  if (results.isEmpty && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('No semantic matches found.'),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          e.toString().replaceAll('Exception: ', ''),
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 } finally {
-                  // isIndexing.value = false;
+                  isIndexing.value = false;
                 }
               },
             ),
@@ -2097,10 +2142,11 @@ class DashboardScreen extends HookConsumerWidget {
           ElevatedButton(
             onPressed: () async {
               await prefs.setString('GEMINI_API_KEY', controller.text.trim());
-              // Re-initialize service
-              ref
-                  .read(aiSummarizerProvider.notifier)
-                  .initialize(controller.text.trim());
+              // Re-initialize services
+              final key = controller.text.trim();
+              ref.read(aiSummarizerProvider.notifier).initialize(key);
+              ref.read(embeddingServiceProvider.notifier).initialize(key);
+
               if (context.mounted) Navigator.pop(c);
             },
             style: ElevatedButton.styleFrom(

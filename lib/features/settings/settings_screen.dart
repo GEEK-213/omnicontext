@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:omnicontext/core/services/vector_db_service.dart';
+import 'package:omnicontext/core/services/embedding_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// A full-page settings screen pushed as a route (or shown as a dialog-sheet).
@@ -18,6 +19,7 @@ class SettingsScreen extends HookConsumerWidget {
     final selectedModel = useState<String>('qwen2.5-coder:3b');
     final driftInterval = useState<int>(30);
     final deepScanLimit = useState<double>(10.0);
+    final geminiKeyController = useTextEditingController(text: '');
     final isClearingDb = useState(false);
     final snackMsg = useState<String?>(null);
 
@@ -28,6 +30,7 @@ class SettingsScreen extends HookConsumerWidget {
             prefs.getString('ollama_model') ?? 'qwen2.5-coder:3b';
         driftInterval.value = prefs.getInt('drift_interval_secs') ?? 30;
         deepScanLimit.value = prefs.getDouble('deep_scan_limit') ?? 10.0;
+        geminiKeyController.text = prefs.getString('gemini_api_key') ?? '';
       });
       return null;
     }, const []);
@@ -37,6 +40,13 @@ class SettingsScreen extends HookConsumerWidget {
       await prefs.setString('ollama_model', selectedModel.value);
       await prefs.setInt('drift_interval_secs', driftInterval.value);
       await prefs.setDouble('deep_scan_limit', deepScanLimit.value);
+      await prefs.setString('gemini_api_key', geminiKeyController.text);
+
+      // Re-initialize embedding service
+      ref
+          .read(embeddingServiceProvider.notifier)
+          .initialize(geminiKeyController.text);
+
       if (context.mounted) Navigator.of(context).pop();
     }
 
@@ -131,6 +141,47 @@ class SettingsScreen extends HookConsumerWidget {
               const SizedBox(height: 4),
               Text(
                 'Models must be installed in your local Ollama instance.',
+                style: GoogleFonts.roboto(color: Colors.white24, fontSize: 11),
+              ),
+            ]),
+
+            // ── Gemini API Key ──────────────────────────────────────────────
+            ...section('GEMINI API KEY', [
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.black26,
+                  border: Border.all(color: Colors.white12),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: TextField(
+                  controller: geminiKeyController,
+                  obscureText: true,
+                  style: GoogleFonts.firaCode(
+                    color: Colors.white,
+                    fontSize: 12,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Paste Gemini API Key (starts with AIza...)',
+                    hintStyle: const TextStyle(color: Colors.white24),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                    suffixIcon: IconButton(
+                      icon: const Icon(
+                        Icons.clear,
+                        size: 16,
+                        color: Colors.white30,
+                      ),
+                      onPressed: () => geminiKeyController.clear(),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Required for semantic search indexing via Gemini Embeddings.',
                 style: GoogleFonts.roboto(color: Colors.white24, fontSize: 11),
               ),
             ]),
