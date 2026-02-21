@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -21,20 +19,14 @@ class OnboardingScreen extends HookConsumerWidget {
     final ollamaStatus = useState<String>(
       'idle',
     ); // idle | checking | ok | error
-    final ollamaModel = useState<String>('–');
 
     Future<void> checkOllama() async {
       ollamaStatus.value = 'checking';
       try {
         final res = await http
-            .get(Uri.parse('http://localhost:11434/api/tags'))
+            .get(Uri.parse('http://localhost:11434/'))
             .timeout(const Duration(seconds: 5));
         if (res.statusCode == 200) {
-          final body = jsonDecode(res.body) as Map<String, dynamic>;
-          final models = (body['models'] as List<dynamic>?) ?? [];
-          if (models.isNotEmpty) {
-            ollamaModel.value = (models.first as Map)['name'] as String? ?? '–';
-          }
           ollamaStatus.value = 'ok';
         } else {
           ollamaStatus.value = 'error';
@@ -46,7 +38,7 @@ class OnboardingScreen extends HookConsumerWidget {
 
     Future<void> finish() async {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('onboarding_complete', true);
+      await prefs.setBool('hasCompletedOnboarding', true);
       if (selectedPath.value != null) {
         ref.read(activeProjectProvider.notifier).setPath(selectedPath.value!);
       }
@@ -150,14 +142,14 @@ class OnboardingScreen extends HookConsumerWidget {
       final statusColor = switch (ollamaStatus.value) {
         'ok' => Colors.greenAccent,
         'error' => Colors.redAccent,
-        'checking' => Colors.amber,
+        'checking' => Colors.cyanAccent,
         _ => Colors.white30,
       };
       final statusText = switch (ollamaStatus.value) {
-        'ok' => '✅  Ollama is running — model: ${ollamaModel.value}',
-        'error' => '❌  Cannot reach Ollama. Start it with: ollama serve',
-        'checking' => '⏳  Checking...',
-        _ => 'Press Check to verify Ollama is running.',
+        'ok' => '✅  Ollama is running.',
+        'error' => '❌  Failed: Please run `ollama serve` in your terminal.',
+        'checking' => '⏳  Checking localhost:11434...',
+        _ => 'Press to verify Ollama is running.',
       };
 
       return Column(
@@ -170,9 +162,9 @@ class OnboardingScreen extends HookConsumerWidget {
           ).animate().scale(duration: 400.ms, curve: Curves.elasticOut),
           const SizedBox(height: 24),
           Text(
-            'CONNECT AI ENGINE',
+            'Checking AI Engine...',
             style: GoogleFonts.orbitron(
-              color: Colors.white,
+              color: Colors.cyanAccent,
               fontSize: 16,
               fontWeight: FontWeight.bold,
               letterSpacing: 2,
@@ -212,7 +204,9 @@ class OnboardingScreen extends HookConsumerWidget {
                   )
                 : const Icon(Icons.wifi_tethering, size: 16),
             label: Text(
-              'Check Connection',
+              ollamaStatus.value == 'checking'
+                  ? 'Checking...'
+                  : 'Check Connection',
               style: GoogleFonts.orbitron(fontSize: 12),
             ),
             style: OutlinedButton.styleFrom(
@@ -297,9 +291,9 @@ class OnboardingScreen extends HookConsumerWidget {
           ).animate().scale(duration: 400.ms, curve: Curves.elasticOut),
           const SizedBox(height: 20),
           Text(
-            'YOU\'RE ALL SET',
+            'Ready for Command',
             style: GoogleFonts.orbitron(
-              color: Colors.white,
+              color: Colors.cyanAccent,
               fontSize: 16,
               fontWeight: FontWeight.bold,
               letterSpacing: 2,
@@ -344,7 +338,7 @@ class OnboardingScreen extends HookConsumerWidget {
             onPressed: finish,
             icon: const Icon(Icons.rocket_launch, size: 18),
             label: Text(
-              'Launch OmniContext',
+              'Launch HUD',
               style: GoogleFonts.orbitron(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,

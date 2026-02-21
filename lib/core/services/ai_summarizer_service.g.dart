@@ -6,7 +6,7 @@ part of 'ai_summarizer_service.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$aiSummarizerHash() => r'73a0804b2e801097cdcb1d68c0ccc76a4fb97a6e';
+String _$aiSummarizerHash() => r'abd14095867f82ecb9588c12ac45069228d7a09b';
 
 /// See also [AiSummarizer].
 @ProviderFor(AiSummarizer)

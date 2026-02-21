@@ -91,4 +91,12 @@ class AiSummarizer extends _$AiSummarizer {
     }
     return result;
   }
+
+  // ---------------------------------------------------------------------------
+  // Raw Generation (For Commit Messages)
+  // ---------------------------------------------------------------------------
+
+  Future<String> generateRaw(String prompt) async {
+    return _generate(prompt);
+  }
 }

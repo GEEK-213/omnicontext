@@ -3,6 +3,9 @@ import 'dart:io';
 import 'package:omnicontext/core/database/db_helper.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
+import 'package:omnicontext/core/services/vector_db_service.dart';
+import 'package:omnicontext/core/services/embedding_service.dart';
+import 'package:omnicontext/core/models/code_chunk.dart';
 import 'package:omnicontext/core/services/git_service.dart';
 
 part 'context_repository.g.dart';
@@ -120,38 +123,49 @@ class ContextRepository {
   }
 
   Future<int> _indexFiles(List<File> dartFiles) async {
-    final db = await _dbHelper.database;
+    final vectorDb = _ref.read(vectorDbServiceProvider.notifier);
+    final embeddingService = _ref.read(embeddingServiceProvider.notifier);
 
-    // 2. Sort by last modified (newest first) & take top 50
+    // 2. Sort by last modified (newest first) & take top 10 to avoid excessive API limits
     dartFiles.sort(
       (a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()),
     );
-    final topFiles = dartFiles.take(50).toList();
+    final topFiles = dartFiles.take(15).toList();
 
-    // 3. Re-build Index (Simple approach: Clear & Re-insert)
-    db.execute('DELETE FROM code_index');
+    // 3. Re-build Index (Clear old vectors)
+    await vectorDb.clear();
 
     int indexedCount = 0;
-    final stmt = db.prepare(
-      'INSERT INTO code_index (file_path, content, last_modified) VALUES (?, ?, ?)',
-    );
 
     for (final file in topFiles) {
       try {
         final content = await file.readAsString();
         if (content.trim().isEmpty) continue;
 
-        stmt.execute([
-          file.path,
-          content,
-          file.lastModifiedSync().toIso8601String(),
-        ]);
+        // Restrict chunk sizes to standard window to respect prompt tokens and rate limits.
+        final chunkText = content.length > 2000
+            ? content.substring(0, 2000)
+            : content;
+
+        final embedding = await embeddingService.getEmbedding(chunkText);
+
+        await vectorDb.addChunk(
+          CodeChunk(
+            filePath: file.path,
+            content: chunkText,
+            embedding: embedding,
+          ),
+        );
+
         indexedCount++;
+        // Very slight artificial delay to gracefully respect potential API rate bounds.
+        await Future.delayed(const Duration(milliseconds: 300));
       } catch (e) {
         print('Error indexing ${file.path}: $e');
+        if (e.toString().contains('API Key'))
+          rethrow; // Elevate critical auth errors
       }
     }
-    stmt.dispose();
 
     return indexedCount;
   }
@@ -195,22 +209,28 @@ class ContextRepository {
   }
 
   Future<List<Map<String, dynamic>>> searchCodebase(String query) async {
-    final db = await _dbHelper.database;
     if (query.trim().isEmpty) return [];
 
-    final results = db.select(
-      '''
-      SELECT 
-        file_path, 
-        snippet(code_index, 1, '<b>', '</b>', '...', 15) as match_snippet
-      FROM code_index 
-      WHERE code_index MATCH ? 
-      ORDER BY rank 
-      LIMIT 10;
-    ''',
-      [query],
-    );
+    final vectorDb = _ref.read(vectorDbServiceProvider.notifier);
+    final embeddingService = _ref.read(embeddingServiceProvider.notifier);
 
-    return results;
+    try {
+      final queryEmbedding = await embeddingService.getEmbedding(query);
+      final results = await vectorDb.search(queryEmbedding, limit: 10);
+
+      return results.map((chunk) {
+        return {
+          'file_path': chunk.filePath,
+          'match_snippet': chunk.content.length > 150
+              ? '${chunk.content.substring(0, 150).replaceAll('\n', ' ')}...'
+              : chunk.content.replaceAll('\n', ' '),
+          'full_snippet':
+              chunk.content, // Provide full snippet if the UI needs it
+        };
+      }).toList();
+    } catch (e) {
+      print('Semantic Search Error: $e');
+      throw Exception('Search failed: $e');
+    }
   }
 }

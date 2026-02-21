@@ -100,6 +100,80 @@ class DriftService {
       return 'Error fetching diff: $e';
     }
   }
+
+  /// Pulls remote changes into the current branch
+  Future<String> pullAndMerge(String projectPath) async {
+    try {
+      final result = await Process.run(
+        'git',
+        ['pull'],
+        workingDirectory: projectPath,
+        runInShell: true,
+      );
+
+      final stdout = result.stdout.toString().trim();
+      final stderr = result.stderr.toString().trim();
+
+      if (result.exitCode != 0) {
+        return stderr.isNotEmpty
+            ? stderr
+            : 'Git pull failed with code ${result.exitCode}';
+      }
+      return stdout.isNotEmpty ? stdout : 'Already up to date.';
+    } catch (e) {
+      return 'Command error: $e';
+    }
+  }
+
+  /// Stashes local changes, pulls remote changes, and pops the stash
+  Future<String> stashAndPull(String projectPath) async {
+    try {
+      final stashRes = await Process.run(
+        'git',
+        ['stash'],
+        workingDirectory: projectPath,
+        runInShell: true,
+      );
+
+      final pullRes = await Process.run(
+        'git',
+        ['pull'],
+        workingDirectory: projectPath,
+        runInShell: true,
+      );
+
+      final popRes = await Process.run(
+        'git',
+        ['stash', 'pop'],
+        workingDirectory: projectPath,
+        runInShell: true,
+      );
+
+      final combined = StringBuffer();
+      combined.writeln('--- Stash ---');
+      combined.writeln(
+        stashRes.stdout.toString().trim().isNotEmpty
+            ? stashRes.stdout.toString().trim()
+            : stashRes.stderr.toString().trim(),
+      );
+      combined.writeln('--- Pull ---');
+      combined.writeln(
+        pullRes.stdout.toString().trim().isNotEmpty
+            ? pullRes.stdout.toString().trim()
+            : pullRes.stderr.toString().trim(),
+      );
+      combined.writeln('--- Pop ---');
+      combined.writeln(
+        popRes.stdout.toString().trim().isNotEmpty
+            ? popRes.stdout.toString().trim()
+            : popRes.stderr.toString().trim(),
+      );
+
+      return combined.toString();
+    } catch (e) {
+      return 'Command error: $e';
+    }
+  }
 }
 
 @riverpod

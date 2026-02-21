@@ -40,10 +40,13 @@ void main() async {
 
   // Determine first-run state before building UI
   final prefs = await SharedPreferences.getInstance();
-  final onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
+  final hasCompletedOnboarding =
+      prefs.getBool('hasCompletedOnboarding') ?? false;
 
   runApp(
-    ProviderScope(child: OmniContextApp(showOnboarding: !onboardingComplete)),
+    ProviderScope(
+      child: OmniContextApp(showOnboarding: !hasCompletedOnboarding),
+    ),
   );
 }
 

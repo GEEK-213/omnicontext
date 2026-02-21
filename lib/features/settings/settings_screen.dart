@@ -1,10 +1,7 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:http/http.dart' as http;
 import 'package:omnicontext/core/services/vector_db_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -12,16 +9,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 class SettingsScreen extends HookConsumerWidget {
   const SettingsScreen({super.key});
 
-  static const _driftIntervals = [10, 30, 60, 300]; // seconds
-  static const _driftLabels = ['10s', '30s', '1 min', '5 min'];
+  static const _driftIntervals = [10, 30, 60]; // seconds
+  static const _driftLabels = ['10s', '30s', '60s'];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // ── State ───────────────────────────────────────────────────────────────
-    final availableModels = useState<List<String>>([]);
     final selectedModel = useState<String>('qwen2.5-coder:3b');
     final driftInterval = useState<int>(30);
-    final isLoadingModels = useState(false);
+    final deepScanLimit = useState<double>(10.0);
     final isClearingDb = useState(false);
     final snackMsg = useState<String?>(null);
 
@@ -31,36 +27,16 @@ class SettingsScreen extends HookConsumerWidget {
         selectedModel.value =
             prefs.getString('ollama_model') ?? 'qwen2.5-coder:3b';
         driftInterval.value = prefs.getInt('drift_interval_secs') ?? 30;
+        deepScanLimit.value = prefs.getDouble('deep_scan_limit') ?? 10.0;
       });
       return null;
     }, const []);
-
-    Future<void> fetchModels() async {
-      isLoadingModels.value = true;
-      try {
-        final res = await http
-            .get(Uri.parse('http://localhost:11434/api/tags'))
-            .timeout(const Duration(seconds: 5));
-        if (res.statusCode == 200) {
-          final body = jsonDecode(res.body) as Map<String, dynamic>;
-          final models = (body['models'] as List<dynamic>?) ?? [];
-          availableModels.value = models
-              .map((m) => (m as Map)['name'] as String)
-              .toList();
-        } else {
-          snackMsg.value = 'Ollama returned ${res.statusCode}';
-        }
-      } catch (_) {
-        snackMsg.value = 'Could not reach Ollama. Is it running?';
-      } finally {
-        isLoadingModels.value = false;
-      }
-    }
 
     Future<void> saveAndClose() async {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('ollama_model', selectedModel.value);
       await prefs.setInt('drift_interval_secs', driftInterval.value);
+      await prefs.setDouble('deep_scan_limit', deepScanLimit.value);
       if (context.mounted) Navigator.of(context).pop();
     }
 
@@ -145,49 +121,64 @@ class SettingsScreen extends HookConsumerWidget {
                 children: [
                   Expanded(
                     child: _SettingsDropdown<String>(
-                      value: availableModels.value.contains(selectedModel.value)
-                          ? selectedModel.value
-                          : null,
-                      hint: selectedModel.value,
-                      items: availableModels.value.isNotEmpty
-                          ? availableModels.value
-                          : [selectedModel.value],
+                      value: selectedModel.value,
+                      items: const ['qwen2.5-coder:3b', 'qwen2.5-coder:1.5b'],
                       onChanged: (v) => selectedModel.value = v!,
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  OutlinedButton(
-                    onPressed: isLoadingModels.value ? null : fetchModels,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.cyanAccent,
-                      side: const BorderSide(color: Colors.cyanAccent),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 14,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    child: isLoadingModels.value
-                        ? const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.cyanAccent,
-                            ),
-                          )
-                        : Text(
-                            'FETCH',
-                            style: GoogleFonts.orbitron(fontSize: 10),
-                          ),
                   ),
                 ],
               ),
               const SizedBox(height: 4),
               Text(
-                'Fetches installed models from http://localhost:11434',
+                'Models must be installed in your local Ollama instance.',
+                style: GoogleFonts.roboto(color: Colors.white24, fontSize: 11),
+              ),
+            ]),
+
+            // ── Deep Scan Limit ──────────────────────────────────────────────
+            ...section('DEEP SCAN FILE LIMIT', [
+              Row(
+                children: [
+                  Expanded(
+                    child: SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        trackHeight: 2,
+                        thumbShape: const RoundSliderThumbShape(
+                          enabledThumbRadius: 6,
+                        ),
+                        overlayShape: const RoundSliderOverlayShape(
+                          overlayRadius: 14,
+                        ),
+                      ),
+                      child: Slider(
+                        value: deepScanLimit.value,
+                        min: 5,
+                        max: 50,
+                        divisions: 45,
+                        activeColor: const Color(0xFF00E5FF),
+                        inactiveColor: Colors.white10,
+                        label: deepScanLimit.value.round().toString(),
+                        onChanged: (v) => deepScanLimit.value = v,
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 30,
+                    child: Text(
+                      '${deepScanLimit.value.round()}',
+                      style: GoogleFonts.firaCode(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Maximum files processed during a Deep Scan. Higher limits use more memory.',
                 style: GoogleFonts.roboto(color: Colors.white24, fontSize: 11),
               ),
             ]),

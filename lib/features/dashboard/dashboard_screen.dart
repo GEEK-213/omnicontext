@@ -7,17 +7,19 @@ import 'package:omnicontext/core/services/shadow_prompter_service.dart';
 import 'package:omnicontext/core/providers/active_project_provider.dart';
 import 'package:omnicontext/features/dashboard/data/context_repository.dart';
 import 'package:file_picker/file_picker.dart';
-
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:omnicontext/features/templates/template_picker_sheet.dart';
 import 'package:omnicontext/core/services/drift_service.dart';
 import 'package:omnicontext/core/services/sync_service.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:omnicontext/features/templates/template_picker_sheet.dart';
 import 'package:omnicontext/core/services/ai_summarizer_service.dart';
 import 'package:omnicontext/core/services/git_service.dart';
+import 'package:omnicontext/core/services/commit_message_service.dart';
 
 // --- PROVIDERS FOR REAL DATA ---
 final gitBranchesProvider = FutureProvider.autoDispose
@@ -106,6 +108,10 @@ class DashboardScreen extends HookConsumerWidget {
     final driftAnalysis = useState<String?>(null);
     final isAnalyzingDrift = useState(false);
 
+    // Git Pull State
+    final isPullingGit = useState(false);
+    final gitPullResult = useState<String?>(null);
+
     Future<void> setWindowSize(bool mini) async {
       isMiniMode.value = mini;
       if (mini) {
@@ -167,6 +173,8 @@ class DashboardScreen extends HookConsumerWidget {
                         isIndexing,
                         driftAnalysis,
                         isAnalyzingDrift,
+                        isPullingGit,
+                        gitPullResult,
                       ),
               ),
             ),
@@ -228,6 +236,8 @@ class DashboardScreen extends HookConsumerWidget {
     ValueNotifier<bool> isIndexing,
     ValueNotifier<String?> driftAnalysis,
     ValueNotifier<bool> isAnalyzingDrift,
+    ValueNotifier<bool> isPullingGit,
+    ValueNotifier<String?> gitPullResult,
   ) {
     return Column(
       children: [
@@ -259,6 +269,8 @@ class DashboardScreen extends HookConsumerWidget {
                   isIndexing,
                   driftAnalysis,
                   isAnalyzingDrift,
+                  isPullingGit,
+                  gitPullResult,
                 ),
               ),
 
@@ -499,6 +511,8 @@ class DashboardScreen extends HookConsumerWidget {
     ValueNotifier<bool> isIndexing,
     ValueNotifier<String?> driftAnalysis,
     ValueNotifier<bool> isAnalyzingDrift,
+    ValueNotifier<bool> isPullingGit,
+    ValueNotifier<String?> gitPullResult,
   ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
@@ -602,46 +616,206 @@ class DashboardScreen extends HookConsumerWidget {
                     else
                       Padding(
                         padding: const EdgeInsets.only(bottom: 8),
-                        child: ElevatedButton.icon(
-                          onPressed: () async {
-                            final projectPath = activeProjectAsync.value;
-                            if (projectPath == null) return;
-                            isAnalyzingDrift.value = true;
-                            driftAnalysis.value = null;
-                            try {
-                              final rawDiff = await ref
-                                  .read(driftServiceProvider)
-                                  .getRemoteDiffSummary(projectPath);
-                              final explanation = await ref
-                                  .read(aiSummarizerProvider.notifier)
-                                  .summarizeDrift(rawDiff);
-                              driftAnalysis.value = explanation;
-                            } catch (e) {
-                              driftAnalysis.value = '❌ Error: $e';
-                            } finally {
-                              isAnalyzingDrift.value = false;
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.black,
-                            foregroundColor: Colors.cyanAccent,
-                            side: const BorderSide(
-                              color: Colors.cyanAccent,
-                              width: 1,
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                final projectPath = activeProjectAsync.value;
+                                if (projectPath == null) return;
+                                isAnalyzingDrift.value = true;
+                                driftAnalysis.value = null;
+                                try {
+                                  final rawDiff = await ref
+                                      .read(driftServiceProvider)
+                                      .getRemoteDiffSummary(projectPath);
+                                  final explanation = await ref
+                                      .read(aiSummarizerProvider.notifier)
+                                      .summarizeDrift(rawDiff);
+                                  driftAnalysis.value = explanation;
+                                } catch (e) {
+                                  driftAnalysis.value = '❌ Error: $e';
+                                } finally {
+                                  isAnalyzingDrift.value = false;
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.black,
+                                foregroundColor: Colors.cyanAccent,
+                                side: const BorderSide(
+                                  color: Colors.cyanAccent,
+                                  width: 1,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 10,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                              ),
+                              icon: const Icon(Icons.smart_toy, size: 16),
+                              label: Text(
+                                'AI Analyze Drift',
+                                style: GoogleFonts.orbitron(fontSize: 11),
+                              ),
                             ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
+                            ElevatedButton.icon(
+                              onPressed: isPullingGit.value
+                                  ? null
+                                  : () async {
+                                      final projectPath =
+                                          activeProjectAsync.value;
+                                      if (projectPath == null) return;
+                                      isPullingGit.value = true;
+                                      gitPullResult.value = null;
+                                      try {
+                                        final result = await ref
+                                            .read(driftServiceProvider)
+                                            .pullAndMerge(projectPath);
+                                        gitPullResult.value = result;
+                                        ref.invalidate(driftMonitorProvider);
+                                        ref.invalidate(gitBranchesProvider);
+                                      } catch (e) {
+                                        gitPullResult.value = '❌ Error: $e';
+                                      } finally {
+                                        isPullingGit.value = false;
+                                      }
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.black,
+                                foregroundColor: Colors.greenAccent,
+                                side: const BorderSide(
+                                  color: Colors.greenAccent,
+                                  width: 1,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 10,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                              ),
+                              icon: isPullingGit.value
+                                  ? const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.greenAccent,
+                                      ),
+                                    )
+                                  : const Icon(Icons.download, size: 16),
+                              label: Text(
+                                isPullingGit.value
+                                    ? 'Pulling...'
+                                    : '⚡ Pull Now',
+                                style: GoogleFonts.orbitron(fontSize: 11),
+                              ),
                             ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6),
-                            ),
+                          ],
+                        ),
+                      ),
+
+                    // ── Git Pull result panel ────────────────────────────────
+                    if (gitPullResult.value != null &&
+                        gitPullResult.value!.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.black87,
+                          border: Border.all(
+                            color:
+                                gitPullResult.value!.toLowerCase().contains(
+                                      'conflict',
+                                    ) ||
+                                    gitPullResult.value!.toLowerCase().contains(
+                                      'error',
+                                    ) ||
+                                    gitPullResult.value!.toLowerCase().contains(
+                                      'failed',
+                                    )
+                                ? Colors.redAccent.withOpacity(0.5)
+                                : Colors.greenAccent.withOpacity(0.5),
                           ),
-                          icon: const Icon(Icons.smart_toy, size: 16),
-                          label: Text(
-                            'AI Analyze Drift',
-                            style: GoogleFonts.orbitron(fontSize: 11),
-                          ),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  gitPullResult.value!.toLowerCase().contains(
+                                            'conflict',
+                                          ) ||
+                                          gitPullResult.value!
+                                              .toLowerCase()
+                                              .contains('error') ||
+                                          gitPullResult.value!
+                                              .toLowerCase()
+                                              .contains('failed')
+                                      ? Icons.error_outline
+                                      : Icons.check_circle_outline,
+                                  size: 14,
+                                  color:
+                                      gitPullResult.value!
+                                              .toLowerCase()
+                                              .contains('conflict') ||
+                                          gitPullResult.value!
+                                              .toLowerCase()
+                                              .contains('error') ||
+                                          gitPullResult.value!
+                                              .toLowerCase()
+                                              .contains('failed')
+                                      ? Colors.redAccent
+                                      : Colors.greenAccent,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'GIT PULL RESULT',
+                                  style: GoogleFonts.orbitron(
+                                    color:
+                                        gitPullResult.value!
+                                                .toLowerCase()
+                                                .contains('conflict') ||
+                                            gitPullResult.value!
+                                                .toLowerCase()
+                                                .contains('error') ||
+                                            gitPullResult.value!
+                                                .toLowerCase()
+                                                .contains('failed')
+                                        ? Colors.redAccent
+                                        : Colors.greenAccent,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const Spacer(),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.close,
+                                    size: 14,
+                                    color: Colors.white54,
+                                  ),
+                                  onPressed: () => gitPullResult.value = null,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              gitPullResult.value!,
+                              style: GoogleFonts.firaCode(
+                                color: Colors.white70,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
 
@@ -1132,11 +1306,14 @@ class DashboardScreen extends HookConsumerWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'JIRA TICKET',
-                        style: GoogleFonts.orbitron(
-                          color: Colors.white30,
-                          fontSize: 10,
+                      Flexible(
+                        child: Text(
+                          'JIRA TICKET',
+                          style: GoogleFonts.orbitron(
+                            color: Colors.white30,
+                            fontSize: 10,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       Container(
@@ -1297,6 +1474,86 @@ class DashboardScreen extends HookConsumerWidget {
             ),
           ),
 
+          // AUTO-COMMIT GENERATOR BUTTON
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: ElevatedButton(
+              onPressed: activeProjectAsync.value == null
+                  ? null
+                  : () async {
+                      final projectPath = activeProjectAsync.value!;
+                      final commitService = ref.read(
+                        commitMessageServiceProvider.notifier,
+                      );
+
+                      // Scaffold messenger for loading state inside an async gap
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Analyzing staged changes...'),
+                          duration: Duration(seconds: 1),
+                        ),
+                      );
+
+                      final message = await commitService.generateCommitMessage(
+                        projectPath,
+                      );
+
+                      if (message.startsWith('Error:') ||
+                          message.startsWith('No staged changes')) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(message),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                        }
+                        return;
+                      }
+
+                      await Clipboard.setData(ClipboardData(text: message));
+
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('COMMIT MESSAGE GENERATED & COPIED'),
+                            backgroundColor: Color(0xFF00E5FF),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1E2746),
+                foregroundColor: const Color(0xFF00E5FF),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  side: const BorderSide(color: Color(0xFF00E5FF), width: 1),
+                ),
+                elevation: 0,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.edit_note, size: 18),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'GENERATE COMMIT MSG',
+                      style: GoogleFonts.orbitron(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
           // BIG GENERATE BUTTON (Fixed at bottom)
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -1304,49 +1561,66 @@ class DashboardScreen extends HookConsumerWidget {
               onPressed: activeProjectAsync.value == null
                   ? null
                   : () async {
-                      // Start Sequence
-                      final service = ref.read(contextGeneratorServiceProvider);
-                      final repo = ref.read(contextRepositoryProvider);
-                      final projectPath = activeProjectAsync.value!;
+                      showModalBottomSheet(
+                        context: context,
+                        backgroundColor: Colors.transparent,
+                        isScrollControlled: true,
+                        builder: (context) => TemplatePickerSheet(
+                          onTemplateSelected: (template) async {
+                            final service = ref.read(
+                              contextGeneratorServiceProvider,
+                            );
+                            final repo = ref.read(contextRepositoryProvider);
+                            final projectPath = activeProjectAsync.value!;
 
-                      try {
-                        // 1. Generate Prompt
-                        final prompt = await service.generateContextPrompt(
-                          projectPath,
-                          figmaUrl: figmaController.text,
-                          deepScan: useDeepScan.value,
-                          strategy: sourceStrategy.value,
-                        );
+                            try {
+                              // Show Loading State (Custom SNACKBAR or overlay recommended long term)
+                              // 1. Generate Raw Prompt
+                              final rawPrompt = await service
+                                  .generateContextPrompt(
+                                    projectPath,
+                                    figmaUrl: figmaController.text,
+                                    deepScan: useDeepScan.value,
+                                    strategy: sourceStrategy.value,
+                                  );
 
-                        // 2. Save Snapshot
-                        await repo.saveSnapshot(
-                          projectPath: projectPath,
-                          branch: 'HEAD',
-                          summary: prompt,
-                        );
+                              // 2. Apply Template Scaffold
+                              final finalPrompt = template.apply(rawPrompt);
 
-                        // 3. Copy & Notify
-                        ref.invalidate(recentSnapshotsProvider);
-                        await Clipboard.setData(ClipboardData(text: prompt));
+                              // 3. Save Snapshot
+                              await repo.saveSnapshot(
+                                projectPath: projectPath,
+                                branch: 'HEAD',
+                                summary: finalPrompt,
+                              );
 
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text(
-                                'CONTEXT PACKET GENERATED & COPIED',
-                              ),
-                              backgroundColor: const Color(0xFF00E5FF),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(
-                            context,
-                          ).showSnackBar(SnackBar(content: Text('Error: $e')));
-                        }
-                      }
+                              // 4. Copy & Notify
+                              ref.invalidate(recentSnapshotsProvider);
+                              await Clipboard.setData(
+                                ClipboardData(text: finalPrompt),
+                              );
+
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'COPIED [${template.name}] CONTEXT PACKET',
+                                    ),
+                                    backgroundColor: const Color(0xFF00E5FF),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Error: $e')),
+                                );
+                              }
+                            }
+                          },
+                        ),
+                      );
                     },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF00E5FF),
@@ -1362,12 +1636,15 @@ class DashboardScreen extends HookConsumerWidget {
                 children: [
                   const Icon(Icons.bolt, size: 18),
                   const SizedBox(width: 8),
-                  Text(
-                    'GENERATE CONTEXT',
-                    style: GoogleFonts.orbitron(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1,
+                  Flexible(
+                    child: Text(
+                      'GENERATE CONTEXT',
+                      style: GoogleFonts.orbitron(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -1387,13 +1664,16 @@ class DashboardScreen extends HookConsumerWidget {
         children: [
           // Icon(icon, size: 12, color: Colors.white30), // Optional
           // SizedBox(width: 8),
-          Text(
-            title,
-            style: GoogleFonts.orbitron(
-              color: Colors.white54,
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.5,
+          Flexible(
+            child: Text(
+              title,
+              style: GoogleFonts.orbitron(
+                color: Colors.white54,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.5,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -1684,12 +1964,25 @@ class DashboardScreen extends HookConsumerWidget {
                           ],
                         ),
                         onTap: () {
-                          Clipboard.setData(ClipboardData(text: snippet));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Snippet copied to clipboard'),
-                            ),
-                          );
+                          try {
+                            // Desktop VS Code format: code -g <file>
+                            Process.run('code', [
+                              '-g',
+                              item['file_path'] as String,
+                            ], runInShell: true);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Opened file in VS Code'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Failed to open VS Code: $e'),
+                              ),
+                            );
+                          }
                         },
                       );
                     },

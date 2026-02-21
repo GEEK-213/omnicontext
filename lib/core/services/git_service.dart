@@ -55,4 +55,18 @@ class GitService {
       return [];
     }
   }
+
+  Future<String> getStagedDiff(String projectPath) async {
+    try {
+      final result = await Process.run('git', [
+        'diff',
+        '--cached',
+      ], workingDirectory: projectPath);
+
+      if (result.exitCode != 0) return '';
+      return (result.stdout as String).trim();
+    } catch (e) {
+      return '';
+    }
+  }
 }
