@@ -22,6 +22,9 @@ import 'package:omnicontext/core/services/commit_message_service.dart';
 import 'package:omnicontext/core/services/embedding_service.dart';
 import 'package:omnicontext/core/services/websocket_service.dart';
 import 'package:omnicontext/features/dashboard/widgets/terminal_history_panel.dart';
+import 'package:omnicontext/core/plugins/plugin_registry.dart';
+import 'package:omnicontext/core/plugins/figma_plugin.dart';
+import 'package:omnicontext/core/plugins/jira_plugin.dart';
 
 // --- PROVIDERS FOR REAL DATA ---
 final gitBranchesProvider = FutureProvider.autoDispose
@@ -82,10 +85,15 @@ class DashboardScreen extends HookConsumerWidget {
       });
     });
 
-    // Initialize AI Service (warm up key cache on startup)
+    // Initialize AI Service (warm up key cache)
     useEffect(() {
       // Start the local WebSocket Server for VS Code companion
       ref.read(websocketServiceProvider.notifier).startServer();
+      // Register built-in plugins
+      ref.read(pluginRegistryProvider.notifier)
+        ..registerPlugin(FigmaPlugin())
+        ..registerPlugin(JiraPlugin());
+
       SharedPreferences.getInstance().then((prefs) {
         final geminiKey = prefs.getString('GEMINI_API_KEY') ?? '';
         final openAiKey = prefs.getString('OPENAI_API_KEY') ?? '';
@@ -1274,114 +1282,17 @@ class DashboardScreen extends HookConsumerWidget {
                   const SizedBox(height: 24),
                   _buildPanelHeader('INTEGRATIONS', Icons.link),
 
-                  // FIGMA
-                  Text(
-                    'FIGMA URL',
-                    style: GoogleFonts.orbitron(
-                      color: Colors.white30,
-                      fontSize: 10,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.3),
-                      border: Border.all(color: Colors.white12),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: TextField(
-                      controller: figmaController,
-                      style: GoogleFonts.firaCode(
-                        color: Colors.white,
-                        fontSize: 11,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'Paste frame link...',
-                        hintStyle: const TextStyle(color: Colors.white24),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 10,
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.edit,
-                          size: 12,
-                          color: Colors.white30,
+                  // DYNAMIC PLUGINS
+                  ...ref
+                      .watch(pluginRegistryProvider)
+                      .map(
+                        (plugin) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12.0),
+                          child: plugin.buildPanel(context, ref),
                         ),
                       ),
-                    ),
-                  ),
 
                   const SizedBox(height: 12),
-                  // JIRA (Placeholder)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          'JIRA TICKET',
-                          style: GoogleFonts.orbitron(
-                            color: Colors.white30,
-                            fontSize: 10,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white10,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                        child: Text(
-                          'COMING SOON',
-                          style: GoogleFonts.orbitron(
-                            fontSize: 8,
-                            color: Colors.white38,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Opacity(
-                    opacity: 0.5,
-                    child: Container(
-                      height: 36,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 9,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.3),
-                        border: Border.all(color: Colors.white12),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.confirmation_number,
-                            size: 12,
-                            color: Colors.blueGrey,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'PROJ-123',
-                            style: GoogleFonts.firaCode(
-                              color: Colors.white30,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
                   _buildPanelHeader('ACTIVE MCP SERVERS', Icons.dns),
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -1586,12 +1497,16 @@ class DashboardScreen extends HookConsumerWidget {
                             final projectPath = activeProjectAsync.value!;
 
                             try {
-                              // Show Loading State (Custom SNACKBAR or overlay recommended long term)
+                              // Add plugin contexts
+                              final pluginContext = await ref
+                                  .read(pluginRegistryProvider.notifier)
+                                  .gatherPluginContexts(projectPath);
+
                               // 1. Generate Raw Prompt
                               final rawPrompt = await service
                                   .generateContextPrompt(
                                     projectPath,
-                                    figmaUrl: figmaController.text,
+                                    pluginContext: pluginContext,
                                     deepScan: useDeepScan.value,
                                     strategy: sourceStrategy.value,
                                   );

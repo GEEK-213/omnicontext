@@ -25,14 +25,14 @@ class ContextGeneratorService {
 
   Future<String> generateContextPrompt(
     String projectPath, {
-    String? figmaUrl,
+    String? pluginContext,
     bool deepScan = false,
     String strategy = 'local', // 'local' or 'git'
   }) async {
     final branch = await _gitWatcher.getCurrentBranch(projectPath);
 
-    final figmaLine = figmaUrl != null && figmaUrl.isNotEmpty
-        ? '\n- Figma Design: $figmaUrl'
+    final pluginBlock = pluginContext != null && pluginContext.isNotEmpty
+        ? '\n$pluginContext'
         : '';
 
     String recentWork = '';
@@ -58,7 +58,7 @@ class ContextGeneratorService {
 Project: $projectPath
 Branch: ${branch ?? 'Not a repo'}
 Strategy: $strategy
-System: Windows 11$figmaLine
+System: Windows 11$pluginBlock
 $recentWork
 --- END CONTEXT ---''';
   }

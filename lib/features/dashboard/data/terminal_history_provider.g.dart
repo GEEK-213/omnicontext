@@ -6,7 +6,7 @@ part of 'terminal_history_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$terminalHistoryHash() => r'ce3a164fba0c1f19f50bb306fb826abacfc34294';
+String _$terminalHistoryHash() => r'dc5073c395612d46f0b2f82e75b935e33551a304';
 
 /// Copied from Dart SDK
 class _SystemHash {

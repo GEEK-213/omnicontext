@@ -44,7 +44,6 @@ class ShadowPrompter extends _$ShadowPrompter {
       final context = await service.generateContextPrompt(
         projectPath,
         deepScan: true,
-        figmaUrl: '',
       );
       state = context;
     } catch (e) {
