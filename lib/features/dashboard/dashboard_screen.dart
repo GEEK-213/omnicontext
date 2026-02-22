@@ -16,11 +16,12 @@ import 'package:omnicontext/core/services/drift_service.dart';
 import 'package:omnicontext/core/services/sync_service.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:omnicontext/features/templates/template_picker_sheet.dart';
 import 'package:omnicontext/core/services/ai_summarizer_service.dart';
 import 'package:omnicontext/core/services/git_service.dart';
 import 'package:omnicontext/core/services/commit_message_service.dart';
 import 'package:omnicontext/core/services/embedding_service.dart';
+import 'package:omnicontext/core/services/websocket_service.dart';
+import 'package:omnicontext/features/dashboard/widgets/terminal_history_panel.dart';
 
 // --- PROVIDERS FOR REAL DATA ---
 final gitBranchesProvider = FutureProvider.autoDispose
@@ -83,6 +84,8 @@ class DashboardScreen extends HookConsumerWidget {
 
     // Initialize AI Service (warm up key cache on startup)
     useEffect(() {
+      // Start the local WebSocket Server for VS Code companion
+      ref.read(websocketServiceProvider.notifier).startServer();
       SharedPreferences.getInstance().then((prefs) {
         final geminiKey = prefs.getString('GEMINI_API_KEY') ?? '';
         final openAiKey = prefs.getString('OPENAI_API_KEY') ?? '';
@@ -915,7 +918,11 @@ class DashboardScreen extends HookConsumerWidget {
           ),
 
           const SizedBox(height: 16),
-          // 3. CONTEXT HISTORY (Title)
+          // 3. TERMINAL HISTORY PANEL
+          const Expanded(flex: 2, child: TerminalHistoryPanel()),
+
+          const SizedBox(height: 16),
+          // 4. CONTEXT HISTORY (Title)
           Row(
             children: [
               Flexible(
@@ -941,8 +948,9 @@ class DashboardScreen extends HookConsumerWidget {
             ],
           ),
           const SizedBox(height: 8),
-          // 4. HISTORY LIST
+          // 5. HISTORY LIST
           Expanded(
+            flex: 3,
             child: recentSnapshots.when(
               data: (snapshots) {
                 return ListView.separated(

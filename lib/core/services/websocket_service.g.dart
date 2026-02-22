@@ -1,27 +1,26 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'commit_message_service.dart';
+part of 'websocket_service.dart';
 
 // **************************************************************************
 // RiverpodGenerator
 // **************************************************************************
 
-String _$commitMessageServiceHash() =>
-    r'911e66fdb52d853cf119b4f1d7cbaf17b6ad3421';
+String _$websocketServiceHash() => r'3f667945b5a9aaf833a3bf9ca07b2d8b2e0f3515';
 
-/// See also [CommitMessageService].
-@ProviderFor(CommitMessageService)
-final commitMessageServiceProvider =
-    NotifierProvider<CommitMessageService, void>.internal(
-      CommitMessageService.new,
-      name: r'commitMessageServiceProvider',
+/// See also [WebsocketService].
+@ProviderFor(WebsocketService)
+final websocketServiceProvider =
+    NotifierProvider<WebsocketService, void>.internal(
+      WebsocketService.new,
+      name: r'websocketServiceProvider',
       debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
           ? null
-          : _$commitMessageServiceHash,
+          : _$websocketServiceHash,
       dependencies: null,
       allTransitiveDependencies: null,
     );
 
-typedef _$CommitMessageService = Notifier<void>;
+typedef _$WebsocketService = Notifier<void>;
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
