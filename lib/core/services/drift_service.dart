@@ -9,6 +9,17 @@ part 'drift_service.g.dart';
 
 enum DriftStatus { synced, ahead, behind, diverged, unknown, error }
 
+class DriftInfo {
+  final DriftStatus status;
+  final int ahead;
+  final int behind;
+
+  DriftInfo(this.status, {this.ahead = 0, this.behind = 0});
+
+  factory DriftInfo.unknown() => DriftInfo(DriftStatus.unknown);
+  factory DriftInfo.error() => DriftInfo(DriftStatus.error);
+}
+
 @Riverpod(keepAlive: true)
 DriftService driftService(DriftServiceRef ref) {
   return DriftService();
@@ -21,7 +32,7 @@ class DriftService {
   // But for Riverpod, we might just use a separate provider for the state.
   // For now, let's just expose a method to check.
 
-  Future<DriftStatus> checkDrift(String projectPath) async {
+  Future<DriftInfo> checkDrift(String projectPath) async {
     try {
       // 1. Fetch from remote
       // We use Process.run to avoid blocking the main isolate significantly
@@ -44,26 +55,29 @@ class DriftService {
 
       if (result.exitCode != 0) {
         // Likely no upstream configured
-        return DriftStatus.unknown;
+        return DriftInfo.unknown();
       }
 
       final output = result.stdout.toString().trim();
       final parts = output.split(RegExp(r'\s+'));
 
-      if (parts.length != 2) return DriftStatus.unknown;
+      if (parts.length != 2) return DriftInfo.unknown();
 
       final ahead = int.tryParse(parts[0]) ?? 0;
       final behind = int.tryParse(parts[1]) ?? 0;
 
-      if (ahead == 0 && behind == 0) return DriftStatus.synced;
-      if (ahead > 0 && behind == 0) return DriftStatus.ahead;
-      if (behind > 0 && ahead == 0) return DriftStatus.behind;
-      if (ahead > 0 && behind > 0) return DriftStatus.diverged;
+      if (ahead == 0 && behind == 0) return DriftInfo(DriftStatus.synced);
+      if (ahead > 0 && behind == 0)
+        return DriftInfo(DriftStatus.ahead, ahead: ahead, behind: behind);
+      if (behind > 0 && ahead == 0)
+        return DriftInfo(DriftStatus.behind, ahead: ahead, behind: behind);
+      if (ahead > 0 && behind > 0)
+        return DriftInfo(DriftStatus.diverged, ahead: ahead, behind: behind);
 
-      return DriftStatus.unknown;
+      return DriftInfo.unknown();
     } catch (e) {
       debugPrint('Error checking drift: $e');
-      return DriftStatus.error;
+      return DriftInfo.error();
     }
   }
 
@@ -181,7 +195,7 @@ class DriftMonitor extends _$DriftMonitor with WidgetsBindingObserver {
   Timer? _timer;
 
   @override
-  Future<DriftStatus> build() async {
+  Future<DriftInfo> build() async {
     final service = ref.watch(driftServiceProvider);
     final activeProject = ref.watch(activeProjectProvider);
 
@@ -199,7 +213,7 @@ class DriftMonitor extends _$DriftMonitor with WidgetsBindingObserver {
     });
 
     final projectPath = activeProject.value;
-    if (projectPath == null) return DriftStatus.unknown;
+    if (projectPath == null) return DriftInfo.unknown();
 
     return service.checkDrift(projectPath);
   }

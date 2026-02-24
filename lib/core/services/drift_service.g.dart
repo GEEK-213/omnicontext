@@ -23,12 +23,12 @@ final driftServiceProvider = Provider<DriftService>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef DriftServiceRef = ProviderRef<DriftService>;
-String _$driftMonitorHash() => r'52821cdb8a59b0c496e0d5043058f94597ca4465';
+String _$driftMonitorHash() => r'cc4b2317538d9d371c16a0901341028bd356d88a';
 
 /// See also [DriftMonitor].
 @ProviderFor(DriftMonitor)
 final driftMonitorProvider =
-    AutoDisposeAsyncNotifierProvider<DriftMonitor, DriftStatus>.internal(
+    AutoDisposeAsyncNotifierProvider<DriftMonitor, DriftInfo>.internal(
       DriftMonitor.new,
       name: r'driftMonitorProvider',
       debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
@@ -38,6 +38,6 @@ final driftMonitorProvider =
       allTransitiveDependencies: null,
     );
 
-typedef _$DriftMonitor = AutoDisposeAsyncNotifier<DriftStatus>;
+typedef _$DriftMonitor = AutoDisposeAsyncNotifier<DriftInfo>;
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

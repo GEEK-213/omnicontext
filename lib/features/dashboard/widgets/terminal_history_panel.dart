@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:omnicontext/core/providers/active_project_provider.dart';
+import 'package:omnicontext/core/services/websocket_service.dart';
 import 'package:omnicontext/features/dashboard/data/terminal_history_provider.dart';
 import 'package:intl/intl.dart';
 
@@ -152,6 +153,31 @@ class TerminalHistoryPanel extends ConsumerWidget {
                                     content: Text(
                                       'Command copied to clipboard',
                                     ),
+                                    backgroundColor: Colors.cyan,
+                                    behavior: SnackBarBehavior.floating,
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(width: 4),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.send_to_mobile,
+                                size: 14,
+                                color: Colors.cyanAccent,
+                              ),
+                              tooltip: 'Apply to Editor',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () {
+                                ref
+                                    .read(websocketServiceProvider.notifier)
+                                    .sendInsertCodeCommand(log.command);
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Command sent to VS Code'),
                                     backgroundColor: Colors.cyan,
                                     behavior: SnackBarBehavior.floating,
                                     duration: Duration(seconds: 1),

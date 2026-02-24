@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,6 +7,13 @@ import 'package:omnicontext/features/dashboard/dashboard_screen.dart';
 import 'package:omnicontext/features/onboarding/onboarding_screen.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:hotkey_manager/hotkey_manager.dart';
+
+// Global provider to signal when the hotkey is pressed.
+final hotkeyTriggerProvider = StateProvider<int>((ref) => 0);
+
+// Global provider container to allow accessing providers outside the widget tree
+final container = ProviderContainer();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,6 +28,9 @@ void main() async {
 
   // Initialize Window Manager
   await windowManager.ensureInitialized();
+
+  // Initialize Hotkey Manager
+  await hotKeyManager.unregisterAll();
 
   WindowOptions windowOptions = const WindowOptions(
     size: Size(350, 800),
@@ -40,8 +51,29 @@ void main() async {
     await windowManager.setPreventClose(true);
   });
 
+  // Register Global Hotkey (Alt + Space)
+  HotKey hotKey = HotKey(
+    key: LogicalKeyboardKey.space,
+    modifiers: [HotKeyModifier.alt],
+    scope: HotKeyScope.system,
+  );
+
+  await hotKeyManager.register(
+    hotKey,
+    keyDownHandler: (hotKey) async {
+      await windowManager.show();
+      await windowManager.focus();
+      container.read(hotkeyTriggerProvider.notifier).state++;
+    },
+  );
+
   // Always show onboarding to allow project selection on startup
-  runApp(const ProviderScope(child: OmniContextApp(showOnboarding: true)));
+  runApp(
+    UncontrolledProviderScope(
+      container: container,
+      child: const OmniContextApp(showOnboarding: true),
+    ),
+  );
 }
 
 class OmniContextApp extends StatefulWidget {
@@ -78,6 +110,7 @@ class _OmniContextAppState extends State<OmniContextApp>
 
   @override
   void dispose() {
+    hotKeyManager.unregisterAll();
     windowManager.removeListener(this);
     trayManager.removeListener(this);
     super.dispose();

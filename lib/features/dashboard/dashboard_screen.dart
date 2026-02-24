@@ -12,6 +12,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:omnicontext/features/templates/template_picker_sheet.dart';
+import 'package:omnicontext/main.dart'; // Import main to access hotkeyTriggerProvider
 import 'package:omnicontext/core/services/drift_service.dart';
 import 'package:omnicontext/core/services/sync_service.dart';
 import 'package:window_manager/window_manager.dart';
@@ -109,6 +110,8 @@ class DashboardScreen extends HookConsumerWidget {
       return null;
     }, []);
 
+    final searchFocusNode = useFocusNode();
+
     final isMiniMode = useState(false);
     final useDeepScan = useState(false);
     final isHovered = useState(false);
@@ -137,6 +140,22 @@ class DashboardScreen extends HookConsumerWidget {
         await windowManager.setOpacity(0.95);
       }
     }
+
+    // Listen to the global hotkey trigger to focus the search bar
+    ref.listen(hotkeyTriggerProvider, (previous, next) {
+      if (next > 0) {
+        // Ensure not mini mode
+        if (isMiniMode.value) {
+          setWindowSize(false);
+        }
+        // Focus search input and select all text
+        searchFocusNode.requestFocus();
+        searchController.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: searchController.text.length,
+        );
+      }
+    });
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -190,6 +209,7 @@ class DashboardScreen extends HookConsumerWidget {
                         isAnalyzingDrift,
                         isPullingGit,
                         gitPullResult,
+                        searchFocusNode,
                       ),
               ),
             ),
@@ -241,7 +261,7 @@ class DashboardScreen extends HookConsumerWidget {
     VoidCallback onShrink,
     WidgetRef ref,
     TextEditingController figmaController,
-    AsyncValue<DriftStatus> driftStatusAsync,
+    AsyncValue<DriftInfo> driftStatusAsync,
     AsyncValue<List<Map<String, dynamic>>> recentSnapshots,
     ValueNotifier<bool> useDeepScan,
     AsyncValue<String?> activeProjectAsync,
@@ -253,6 +273,7 @@ class DashboardScreen extends HookConsumerWidget {
     ValueNotifier<bool> isAnalyzingDrift,
     ValueNotifier<bool> isPullingGit,
     ValueNotifier<String?> gitPullResult,
+    FocusNode searchFocusNode,
   ) {
     return Column(
       children: [
@@ -286,6 +307,7 @@ class DashboardScreen extends HookConsumerWidget {
                   isAnalyzingDrift,
                   isPullingGit,
                   gitPullResult,
+                  searchFocusNode,
                 ),
               ),
 
@@ -519,7 +541,7 @@ class DashboardScreen extends HookConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     AsyncValue<String?> activeProjectAsync,
-    AsyncValue<DriftStatus> driftStatusAsync,
+    AsyncValue<DriftInfo> driftStatusAsync,
     AsyncValue<List<Map<String, dynamic>>> recentSnapshots,
     TextEditingController searchController,
     ValueNotifier<List<Map<String, dynamic>>> searchResults,
@@ -528,6 +550,7 @@ class DashboardScreen extends HookConsumerWidget {
     ValueNotifier<bool> isAnalyzingDrift,
     ValueNotifier<bool> isPullingGit,
     ValueNotifier<String?> gitPullResult,
+    FocusNode searchFocusNode,
   ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
@@ -538,12 +561,85 @@ class DashboardScreen extends HookConsumerWidget {
           const SizedBox(height: 12),
           // 1. DRIFT WARNING BANNER + AI MEDIATOR
           driftStatusAsync.when(
-            data: (status) {
-              if (status == DriftStatus.behind ||
-                  status == DriftStatus.diverged) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
+            data: (info) {
+              if (info.status == DriftStatus.unknown ||
+                  info.status == DriftStatus.error) {
+                return const SizedBox.shrink();
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // ── Git Branch Visualizer ─────────────────────────────────
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.4),
+                      border: Border.all(color: Colors.white12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        Column(
+                          children: [
+                            Text(
+                              '${info.ahead}',
+                              style: GoogleFonts.orbitron(
+                                fontSize: 24,
+                                color: info.ahead > 0
+                                    ? Colors.greenAccent
+                                    : Colors.white24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'COMMITS AHEAD',
+                              style: GoogleFonts.orbitron(
+                                fontSize: 9,
+                                color: info.ahead > 0
+                                    ? Colors.green.shade200
+                                    : Colors.white54,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Container(width: 1, height: 30, color: Colors.white12),
+                        Column(
+                          children: [
+                            Text(
+                              '${info.behind}',
+                              style: GoogleFonts.orbitron(
+                                fontSize: 24,
+                                color: info.behind > 0
+                                    ? Colors.orangeAccent
+                                    : Colors.white24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'COMMITS BEHIND',
+                              style: GoogleFonts.orbitron(
+                                fontSize: 9,
+                                color: info.behind > 0
+                                    ? Colors.orange.shade200
+                                    : Colors.white54,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Show existing pull warning ONLY if we are behind or diverged
+                  if (info.status == DriftStatus.behind ||
+                      info.status == DriftStatus.diverged) ...[
                     // ── Orange drift warning ─────────────────────────────────
                     Container(
                       margin: const EdgeInsets.only(bottom: 8),
@@ -906,10 +1002,9 @@ class DashboardScreen extends HookConsumerWidget {
                           ],
                         ),
                       ),
-                  ],
-                );
-              }
-              return const SizedBox.shrink();
+                  ], // End of behind/diverged specific children
+                ],
+              );
             },
             loading: () => const SizedBox.shrink(),
             error: (_, __) => const SizedBox.shrink(),
@@ -923,6 +1018,7 @@ class DashboardScreen extends HookConsumerWidget {
             searchController,
             searchResults,
             isIndexing,
+            searchFocusNode,
           ),
 
           const SizedBox(height: 16),
@@ -1650,6 +1746,7 @@ class DashboardScreen extends HookConsumerWidget {
     TextEditingController searchController,
     ValueNotifier<List<Map<String, dynamic>>> searchResults,
     ValueNotifier<bool> isIndexing,
+    FocusNode searchFocusNode,
   ) {
     if (projectPath == null) {
       return Container(
@@ -1813,6 +1910,7 @@ class DashboardScreen extends HookConsumerWidget {
             ),
             child: TextField(
               controller: searchController,
+              focusNode: searchFocusNode,
               style: GoogleFonts.firaCode(color: Colors.white, fontSize: 12),
               decoration: InputDecoration(
                 hintText: 'Search codebase (e.g. "auth provider")...',
