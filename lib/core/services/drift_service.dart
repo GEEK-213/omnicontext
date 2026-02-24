@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:omnicontext/core/providers/active_project_provider.dart';
 
@@ -67,12 +66,15 @@ class DriftService {
       final behind = int.tryParse(parts[1]) ?? 0;
 
       if (ahead == 0 && behind == 0) return DriftInfo(DriftStatus.synced);
-      if (ahead > 0 && behind == 0)
+      if (ahead > 0 && behind == 0) {
         return DriftInfo(DriftStatus.ahead, ahead: ahead, behind: behind);
-      if (behind > 0 && ahead == 0)
+      }
+      if (behind > 0 && ahead == 0) {
         return DriftInfo(DriftStatus.behind, ahead: ahead, behind: behind);
-      if (ahead > 0 && behind > 0)
+      }
+      if (ahead > 0 && behind > 0) {
         return DriftInfo(DriftStatus.diverged, ahead: ahead, behind: behind);
+      }
 
       return DriftInfo.unknown();
     } catch (e) {

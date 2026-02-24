@@ -1,0 +1,96 @@
+00:00 +0: loading C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/context_generator_manual_test.dart
+00:00 +0: C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/context_generator_manual_test.dart: ContextGeneratorService generates prompt
+Generating context for: C:\Users\faari\OneDrive\Desktop\Desktop\My_Projects\omnicontext\omnicontext
+Generated Prompt:
+--- BEGIN PROJECT CONTEXT ---
+Project: C:\Users\faari\OneDrive\Desktop\Desktop\My_Projects\omnicontext\omnicontext
+Branch: master
+Strategy: local
+System: Windows 11
+
+--- END CONTEXT ---
+00:00 +0 -1: C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/context_generator_manual_test.dart: ContextGeneratorService generates prompt [E]
+  Expected: contains 'ACTIVE CONTEXT:'
+    Actual: '--- BEGIN PROJECT CONTEXT ---\n'
+              'Project: C:\\Users\\faari\\OneDrive\\Desktop\\Desktop\\My_Projects\\omnicontext\\omnicontext\n'
+              'Branch: master\n'
+              'Strategy: local\n'
+              'System: Windows 11\n'
+              '\n'
+              '--- END CONTEXT ---'
+     Which: does not contain 'ACTIVE CONTEXT:'
+  
+  package:matcher                                     expect
+  package:flutter_test/src/widget_tester.dart 473:18  expect
+  test\context_generator_manual_test.dart 17:5        main.<fn>
+  
+00:00 +0 -1: C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/context_repository_manual_test.dart: ContextRepository saves and retrieves snapshots
+Saving snapshot...
+00:00 +0 -2: C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/context_repository_manual_test.dart: ContextRepository saves and retrieves snapshots [E]
+  Binding has not yet been initialized.
+  The "instance" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.
+  Typically, this is done by calling "WidgetsFlutterBinding.ensureInitialized()" or "runApp()" (the latter calls the former). Typically this call is done in the "void main()" method. The "ensureInitialized" method is idempotent; calling it multiple times is not harmful. After calling that method, the "instance" getter will return the binding.
+  In a test, one can call "TestWidgetsFlutterBinding.ensureInitialized()" as the first line in the test's "main()" method to initialize the binding.
+  If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the "instance" getter.
+  package:flutter/src/foundation/binding.dart 314:9                                     BindingBase.checkInstance.<fn>
+  package:flutter/src/foundation/binding.dart 401:6                                     BindingBase.checkInstance
+  package:flutter/src/services/binding.dart 73:54                                       ServicesBinding.instance
+  package:flutter/src/services/platform_channel.dart 179:25                             _findBinaryMessenger
+  package:flutter/src/services/platform_channel.dart 320:56                             MethodChannel.binaryMessenger
+  package:flutter/src/services/platform_channel.dart 360:17                             MethodChannel._invokeMethod
+  package:flutter/src/services/platform_channel.dart 540:12                             MethodChannel.invokeMethod
+  package:path_provider_platform_interface/src/method_channel_path_provider.dart 52:10  MethodChannelPathProvider.getApplicationDocumentsPath
+  package:path_provider/path_provider.dart 121:40                                       getApplicationDocumentsDirectory
+  package:omnicontext/core/database/db_helper.dart 25:27                                DatabaseHelper._initDatabase
+  package:omnicontext/core/database/db_helper.dart 20:29                                DatabaseHelper.database
+  package:omnicontext/features/dashboard/data/context_repository.dart 39:32             ContextRepository.saveSnapshot
+  test\context_repository_manual_test.dart 19:16                                        main.<fn>
+  
+00:00 +0 -2: C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/core/services/git_service_test.dart: getBranches returns list of branches
+00:00 +0 -2: C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/core/services/websocket_service_test.dart: WebsocketService Tests Server binds and accepts connections
+WebSocket Server listening on ws://localhost:7172
+VS Code Extension Connected! Total clients: 1
+Client disconnected. Total clients: 0
+WebSocket Server stopped.
+WebSocket Server stopped.
+00:00 +1 -2: C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/core/services/git_service_test.dart: getBranches returns list of branches
+00:00 +1 -2: C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/core/services/websocket_service_test.dart: WebsocketService Tests Enforces connection limits (Max 5)
+WebSocket Server listening on ws://localhost:7172
+00:00 +2 -2: C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/core/services/websocket_service_test.dart: WebsocketService Tests Enforces connection limits (Max 5)
+VS Code Extension Connected! Total clients: 1
+VS Code Extension Connected! Total clients: 2
+VS Code Extension Connected! Total clients: 3
+VS Code Extension Connected! Total clients: 4
+VS Code Extension Connected! Total clients: 5
+Connection rejected: Max connections reached (5).
+00:01 +3 -2: C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/core/services/websocket_service_test.dart: WebsocketService Tests Enforces connection limits (Max 5)
+Client disconnected. Total clients: 4
+Client disconnected. Total clients: 3
+Client disconnected. Total clients: 2
+Client disconnected. Total clients: 1
+Client disconnected. Total clients: 0
+WebSocket Server stopped.
+WebSocket Server stopped.
+00:01 +4 -2: C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/features/dashboard/dashboard_screen_test.dart: DashboardScreen renders its main sections
+00:01 +4 -2: C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/core/services/websocket_service_test.dart: WebsocketService Tests sendInsertCodeCommand broadcasts to connected clients
+WebSocket Server listening on ws://localhost:7172
+VS Code Extension Connected! Total clients: 1
+Broadcasted message to 1 clients: {"type":"insert_code","code":"print(\"hello\");"}
+00:01 +4 -2: C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/features/dashboard/dashboard_screen_test.dart: DashboardScreen renders its main sections
+00:01 +5 -2: C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/features/dashboard/dashboard_screen_test.dart: DashboardScreen renders its main sections
+00:01 +5 -2: C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/core/services/websocket_service_test.dart: WebsocketService Tests sendInsertCodeCommand broadcasts to connected clients
+Client disconnected. Total clients: 0
+WebSocket Server stopped.
+WebSocket Server stopped.
+00:01 +6 -2: C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/features/dashboard/dashboard_screen_test.dart: DashboardScreen renders its main sections
+00:01 +6 -2: C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/git_watcher_manual_test.dart: GitWatcherService detects branch
+Checking: C:\Users\faari\OneDrive\Desktop\Desktop\My_Projects\omnicontext\omnicontext
+Detected Branch: master
+00:01 +7 -2: C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/features/dashboard/dashboard_screen_test.dart: DashboardScreen renders its main sections
+00:02 +8 -2: C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/features/dashboard/dashboard_screen_test.dart: DashboardScreen renders its main sections
+00:02 +9 -2: C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/features/dashboard/dashboard_screen_test.dart: DashboardScreen renders its main sections
+00:02 +10 -2: C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/features/dashboard/dashboard_screen_test.dart: DashboardScreen renders its main sections
+00:02 +11 -2: C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/features/dashboard/dashboard_screen_test.dart: DashboardScreen renders its main sections
+00:02 +12 -2: C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/features/dashboard/dashboard_screen_test.dart: DashboardScreen renders its main sections
+00:02 +13 -2: C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/features/dashboard/dashboard_screen_test.dart: (tearDownAll)
+00:02 +13 -2: Some tests failed.

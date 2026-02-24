@@ -162,8 +162,9 @@ class ContextRepository {
         await Future.delayed(const Duration(milliseconds: 300));
       } catch (e) {
         print('Error indexing ${file.path}: $e');
-        if (e.toString().contains('API Key'))
+        if (e.toString().contains('API Key')) {
           rethrow; // Elevate critical auth errors
+        }
       }
     }
 

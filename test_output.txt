@@ -1,0 +1,38 @@
+00:00 +0: loading C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/features/dashboard/dashboard_screen_test.dart
+00:00 +0 -1: loading C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/features/dashboard/dashboard_screen_test.dart [E]
+  Failed to load "C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/features/dashboard/dashboard_screen_test.dart":
+  Compilation failed for testPath=C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/features/dashboard/dashboard_screen_test.dart: test/features/dashboard/dashboard_screen_test.dart:25:17: Error: The return type of the method 'FakePluginRegistry.build' is 'List<dynamic>', which does not match the return type, 'List<OmniPlugin>', of the overridden method, 'PluginRegistry.build'.
+   - 'List' is from 'dart:core'.
+   - 'OmniPlugin' is from 'package:omnicontext/core/plugins/omni_plugin.dart' ('lib/core/plugins/omni_plugin.dart').
+  Change to a subtype of 'List<OmniPlugin>'.
+    List<dynamic> build() => [];
+                  ^
+  lib/core/plugins/plugin_registry.dart:9:20: Context: This is the overridden method ('build').
+    List<OmniPlugin> build() {
+                     ^
+  test/features/dashboard/dashboard_screen_test.dart:78:45: Error: Member not found: 'inSync'.
+                DriftInfo(status: DriftStatus.inSync, ahead: 0, behind: 0),
+                                              ^^^^^^
+  test/features/dashboard/dashboard_screen_test.dart:78:24: Error: Too few positional arguments: 1 required, 0 given.
+                DriftInfo(status: DriftStatus.inSync, ahead: 0, behind: 0),
+                         ^
+  lib/core/services/drift_service.dart:16:3: Context: Found this candidate, but the arguments don't match.
+    DriftInfo(this.status, {this.ahead = 0, this.behind = 0});
+    ^^^^^^^^^
+  test/features/dashboard/dashboard_screen_test.dart:74:28: Error: A value of type 'AsyncValue<List<dynamic>>' can't be returned from a function with return type 'FutureOr<List<Map<String, dynamic>>>'.
+   - 'AsyncValue' is from 'package:riverpod/src/common.dart' ('../../../../../../AppData/Local/Pub/Cache/hosted/pub.dev/riverpod-2.6.1/lib/src/common.dart').
+   - 'List' is from 'dart:core'.
+   - 'Map' is from 'dart:core'.
+              (ref) => const AsyncValue.data([]),
+                             ^
+  test/features/dashboard/dashboard_screen_test.dart:77:33: Error: A value of type 'AsyncValue<dynamic>' can't be returned from a function with return type 'DriftMonitor'.
+   - 'AsyncValue' is from 'package:riverpod/src/common.dart' ('../../../../../../AppData/Local/Pub/Cache/hosted/pub.dev/riverpod-2.6.1/lib/src/common.dart').
+   - 'DriftMonitor' is from 'package:omnicontext/core/services/drift_service.dart' ('lib/core/services/drift_service.dart').
+              (ref) => AsyncValue.data(
+                                  ^
+  test/features/dashboard/dashboard_screen_test.dart:77:13: Error: The argument type 'DriftMonitor Function(dynamic)' can't be assigned to the parameter type 'DriftMonitor Function()'.
+   - 'DriftMonitor' is from 'package:omnicontext/core/services/drift_service.dart' ('lib/core/services/drift_service.dart').
+              (ref) => AsyncValue.data(
+              ^
+  .
+00:00 +0 -1: Some tests failed.

@@ -28,7 +28,9 @@ Future<void> main() async {
       final tableNames = tables.map((r) => r['name']).toList();
 
       print('\n📊 Database Tables Found:');
-      for (var t in tableNames) print('   - $t');
+      for (var t in tableNames) {
+        print('   - $t');
+      }
 
       bool hasContext = tableNames.contains('context_snapshots');
       bool hasRemote = tableNames.contains('remote_state');

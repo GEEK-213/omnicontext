@@ -1,0 +1,31 @@
+﻿00:00 +0: loading C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/features/dashboard/widgets/terminal_history_panel_test.dart
+00:00 +0: (setUpAll)
+00:00 +0: TerminalHistoryPanel renders empty state
+00:00 +1: TerminalHistoryPanel renders commands and buttons
+No clients connected to broadcast message.
+No clients connected to broadcast message.
+ΓòÉΓòÉΓòí EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK Γò₧ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+The following TestFailure was thrown running a test:
+Used on a non-mocktail object
+
+When the exception was thrown, this was the stack:
+#0      fail (package:matcher/src/expect/expect.dart:149:31)
+#1      _makeVerify.<anonymous closure> (package:mocktail/src/mocktail.dart:522:7)
+#2      main.<anonymous closure> (file:///C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/features/dashboard/widgets/terminal_history_panel_test.dart:116:11)
+<asynchronous suspension>
+#3      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#4      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1059:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+The test description was:
+  TerminalHistoryPanel renders commands and buttons
+ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+00:01 +1 -1: TerminalHistoryPanel renders commands and buttons [E]
+  Test failed. See exception logs above.
+  The test description was: TerminalHistoryPanel renders commands and buttons
+  
+00:01 +1 -1: (tearDownAll)
+00:01 +1 -1: Some tests failed.

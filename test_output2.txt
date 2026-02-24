@@ -1,0 +1,66 @@
+00:00 +0: loading C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/features/dashboard/dashboard_screen_test.dart
+00:00 +0: (setUpAll)
+00:00 +0: DashboardScreen renders its main sections
+══╡ EXCEPTION CAUGHT BY RENDERING LIBRARY ╞═════════════════════════════════════════════════════════
+The following assertion was thrown during layout:
+A RenderFlex overflowed by 125 pixels on the bottom.
+
+The relevant error-causing widget was:
+  Column
+  Column:file:///C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/lib/features/dashboard/widgets/terminal_history_panel.dart:29:18
+
+The overflowing RenderFlex has an orientation of Axis.vertical.
+The edge of the RenderFlex that is overflowing has been marked in the rendering with a yellow and
+black striped pattern. This is usually caused by the contents being too big for the RenderFlex.
+Consider applying a flex factor (e.g. using an Expanded widget) to force the children of the
+RenderFlex to fit within the available space instead of being sized to their natural size.
+This is considered an error condition because it indicates that there is content that cannot be
+seen. If the content is legitimately bigger than the available space, consider clipping it with a
+ClipRect widget before putting it in the flex, or using a scrollable container rather than a Flex,
+like a ListView.
+The specific RenderFlex in question is: RenderFlex#82e24 OVERFLOWING:
+  creator: Column ← Padding ← DecoratedBox ← Container ← TerminalHistoryPanel ← Expanded ← Column ←
+    Padding ← ColoredBox ← Container ← Expanded ← Row ← ⋯
+  parentData: offset=Offset(13.0, 13.0) (can use size)
+  constraints: BoxConstraints(w=341.0, h=12.0)
+  size: Size(341.0, 12.0)
+  direction: vertical
+  mainAxisAlignment: start
+  mainAxisSize: max
+  crossAxisAlignment: stretch
+  verticalDirection: down
+  spacing: 0.0
+◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤
+════════════════════════════════════════════════════════════════════════════════════════════════════
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following assertion was thrown running a test:
+pumpAndSettle timed out
+
+When the exception was thrown, this was the stack:
+#0      WidgetTester.pumpAndSettle.<anonymous closure> (package:flutter_test/src/widget_tester.dart:717:11)
+<asynchronous suspension>
+#1      TestAsyncUtils.guard.<anonymous closure> (package:flutter_test/src/test_async_utils.dart:130:27)
+<asynchronous suspension>
+#2      main.<anonymous closure> (file:///C:/Users/faari/OneDrive/Desktop/Desktop/My_Projects/omnicontext/omnicontext/test/features/dashboard/dashboard_screen_test.dart:92:5)
+<asynchronous suspension>
+#3      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#4      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1059:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+The test description was:
+  DashboardScreen renders its main sections
+════════════════════════════════════════════════════════════════════════════════════════════════════
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following message was thrown:
+Multiple exceptions (2) were detected during the running of the current test, and at least one was
+unexpected.
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:06 +0 -1: DashboardScreen renders its main sections [E]
+  Test failed. See exception logs above.
+  The test description was: DashboardScreen renders its main sections
+  
+00:06 +0 -1: (tearDownAll)
+00:06 +0 -1: Some tests failed.

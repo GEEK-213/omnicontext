@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:omnicontext/core/services/context_generator_service.dart';
 import 'package:omnicontext/core/services/shadow_prompter_service.dart';
@@ -57,7 +56,7 @@ final projectFilesProvider = FutureProvider.autoDispose
     });
 
 class DashboardScreen extends HookConsumerWidget {
-  DashboardScreen({super.key});
+  const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1352,7 +1351,7 @@ class DashboardScreen extends HookConsumerWidget {
                       Switch(
                         value: useDeepScan.value,
                         onChanged: (val) => useDeepScan.value = val,
-                        activeColor: const Color(0xFF00E5FF),
+                        activeThumbColor: const Color(0xFF00E5FF),
                         activeTrackColor: const Color(
                           0xFF00E5FF,
                         ).withOpacity(0.3),
@@ -1476,7 +1475,7 @@ class DashboardScreen extends HookConsumerWidget {
                         Switch(
                           value: true, // Always on for now
                           onChanged: (val) {},
-                          activeColor: const Color(0xFF6C63FF),
+                          activeThumbColor: const Color(0xFF6C63FF),
                           activeTrackColor: const Color(
                             0xFF6C63FF,
                           ).withOpacity(0.3),

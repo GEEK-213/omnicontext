@@ -60,6 +60,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  mocktail: ^1.0.3
   build_runner: any
   objectbox_generator: ^4.0.0
   riverpod_generator: any

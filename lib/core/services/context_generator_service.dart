@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:omnicontext/core/services/git_watcher_service.dart';
 
-import 'package:path/path.dart' as path;
 
 import 'package:omnicontext/core/services/ai_summarizer_service.dart';
 
