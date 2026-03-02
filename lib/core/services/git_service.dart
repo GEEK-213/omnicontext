@@ -11,10 +11,12 @@ GitService gitService(GitServiceRef ref) {
 class GitService {
   Future<List<String>> getBranches(String projectPath) async {
     try {
-      final result = await Process.run('git', [
-        'branch',
-        '--list',
-      ], workingDirectory: projectPath);
+      final result = await Process.run(
+        'git',
+        ['branch', '--list'],
+        workingDirectory: projectPath,
+        runInShell: true,
+      );
       if (result.exitCode != 0) return [];
 
       final lines = (result.stdout as String).split('\n');
@@ -31,11 +33,12 @@ class GitService {
 
   Future<String> getCurrentBranch(String projectPath) async {
     try {
-      final result = await Process.run('git', [
-        'rev-parse',
-        '--abbrev-ref',
-        'HEAD',
-      ], workingDirectory: projectPath);
+      final result = await Process.run(
+        'git',
+        ['rev-parse', '--abbrev-ref', 'HEAD'],
+        workingDirectory: projectPath,
+        runInShell: true,
+      );
       if (result.exitCode != 0) return 'HEAD';
       return (result.stdout as String).trim();
     } catch (e) {
@@ -45,9 +48,12 @@ class GitService {
 
   Future<List<String>> getTrackedFiles(String projectPath) async {
     try {
-      final result = await Process.run('git', [
-        'ls-files',
-      ], workingDirectory: projectPath);
+      final result = await Process.run(
+        'git',
+        ['ls-files'],
+        workingDirectory: projectPath,
+        runInShell: true,
+      );
       if (result.exitCode != 0) return [];
       final lines = (result.stdout as String).split('\n');
       return lines.where((l) => l.trim().isNotEmpty).toList();
@@ -58,10 +64,12 @@ class GitService {
 
   Future<String> getStagedDiff(String projectPath) async {
     try {
-      final result = await Process.run('git', [
-        'diff',
-        '--cached',
-      ], workingDirectory: projectPath);
+      final result = await Process.run(
+        'git',
+        ['diff', '--cached'],
+        workingDirectory: projectPath,
+        runInShell: true,
+      );
 
       if (result.exitCode != 0) return '';
       return (result.stdout as String).trim();

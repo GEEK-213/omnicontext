@@ -42,6 +42,11 @@ class OnboardingScreen extends HookConsumerWidget {
       if (selectedPath.value != null) {
         ref.read(activeProjectProvider.notifier).setPath(selectedPath.value!);
       }
+
+      // Expand window to full Dashboard UI on completion
+      await windowManager.setSize(const Size(1200, 800));
+      await windowManager.center();
+
       if (context.mounted) {
         Navigator.of(context).pushReplacementNamed('/dashboard');
       }

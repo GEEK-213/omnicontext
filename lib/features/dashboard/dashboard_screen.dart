@@ -87,24 +87,26 @@ class DashboardScreen extends HookConsumerWidget {
 
     // Initialize AI Service (warm up key cache)
     useEffect(() {
-      // Start the local WebSocket Server for VS Code companion
-      ref.read(websocketServiceProvider.notifier).startServer();
-      // Register built-in plugins
-      ref.read(pluginRegistryProvider.notifier)
-        ..registerPlugin(FigmaPlugin())
-        ..registerPlugin(JiraPlugin());
+      Future.microtask(() {
+        // Start the local WebSocket Server for VS Code companion
+        ref.read(websocketServiceProvider.notifier).startServer();
+        // Register built-in plugins
+        ref.read(pluginRegistryProvider.notifier)
+          ..registerPlugin(FigmaPlugin())
+          ..registerPlugin(JiraPlugin());
 
-      SharedPreferences.getInstance().then((prefs) {
-        final geminiKey = prefs.getString('GEMINI_API_KEY') ?? '';
-        final openAiKey = prefs.getString('OPENAI_API_KEY') ?? '';
-        if (geminiKey.isNotEmpty || openAiKey.isNotEmpty) {
-          ref
-              .read(aiSummarizerProvider.notifier)
-              .initialize(geminiKey, openAiKey: openAiKey);
-        }
-        if (geminiKey.isNotEmpty) {
-          ref.read(embeddingServiceProvider.notifier).initialize(geminiKey);
-        }
+        SharedPreferences.getInstance().then((prefs) {
+          final geminiKey = prefs.getString('GEMINI_API_KEY') ?? '';
+          final openAiKey = prefs.getString('OPENAI_API_KEY') ?? '';
+          if (geminiKey.isNotEmpty || openAiKey.isNotEmpty) {
+            ref
+                .read(aiSummarizerProvider.notifier)
+                .initialize(geminiKey, openAiKey: openAiKey);
+          }
+          if (geminiKey.isNotEmpty) {
+            ref.read(embeddingServiceProvider.notifier).initialize(geminiKey);
+          }
+        });
       });
       return null;
     }, []);
@@ -135,8 +137,9 @@ class DashboardScreen extends HookConsumerWidget {
         await windowManager.setSize(const Size(120, 120));
         await windowManager.setOpacity(0.9);
       } else {
-        await windowManager.setSize(const Size(380, 850));
+        await windowManager.setSize(const Size(1200, 800));
         await windowManager.setOpacity(0.95);
+        await windowManager.center();
       }
     }
 
@@ -1010,14 +1013,17 @@ class DashboardScreen extends HookConsumerWidget {
           ),
 
           // 2. INTELLIGENCE CONSOLE (Replaces Terminal)
-          _buildIntelligenceConsole(
-            context,
-            ref,
-            activeProjectAsync.value,
-            searchController,
-            searchResults,
-            isIndexing,
-            searchFocusNode,
+          Expanded(
+            flex: 4,
+            child: _buildIntelligenceConsole(
+              context,
+              ref,
+              activeProjectAsync.value,
+              searchController,
+              searchResults,
+              isIndexing,
+              searchFocusNode,
+            ),
           ),
 
           const SizedBox(height: 16),
@@ -1749,7 +1755,6 @@ class DashboardScreen extends HookConsumerWidget {
   ) {
     if (projectPath == null) {
       return Container(
-        height: 200,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: const Color(0xFF0D1117),
@@ -1764,7 +1769,6 @@ class DashboardScreen extends HookConsumerWidget {
     }
 
     return Container(
-      height: 300,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFF0D1117),

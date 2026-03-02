@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:omnicontext/features/dashboard/dashboard_screen.dart';
 import 'package:omnicontext/features/onboarding/onboarding_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
@@ -32,21 +33,26 @@ void main() async {
   // Initialize Hotkey Manager
   await hotKeyManager.unregisterAll();
 
-  WindowOptions windowOptions = const WindowOptions(
-    size: Size(350, 800),
-    minimumSize: Size(100, 100),
-    center: false,
+  // Load preferences for dynamic routing
+  final prefs = await SharedPreferences.getInstance();
+  final hasCompletedOnboarding =
+      prefs.getBool('hasCompletedOnboarding') ?? false;
+
+  WindowOptions windowOptions = WindowOptions(
+    size: hasCompletedOnboarding ? const Size(1200, 800) : const Size(400, 600),
+    minimumSize: const Size(100, 100),
+    center: true,
     backgroundColor: Colors.transparent, // Crucial for acrylic
     skipTaskbar: false,
     titleBarStyle: TitleBarStyle.hidden,
-    alwaysOnTop: true,
+    alwaysOnTop: false,
   );
 
   await windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.show();
     await windowManager.focus();
-    // Position it roughly on the right side of the screen (optional, user can move it)
-    await windowManager.setPosition(const Offset(100, 100));
+    // Center it on screen
+    await windowManager.center();
     // Prevent default close so we can hide to tray instead
     await windowManager.setPreventClose(true);
   });
@@ -67,11 +73,11 @@ void main() async {
     },
   );
 
-  // Always show onboarding to allow project selection on startup
+  // Handle startup routing based on onboarding completion
   runApp(
     UncontrolledProviderScope(
       container: container,
-      child: const OmniContextApp(showOnboarding: true),
+      child: OmniContextApp(showOnboarding: !hasCompletedOnboarding),
     ),
   );
 }

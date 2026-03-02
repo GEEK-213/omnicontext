@@ -1,16 +1,11 @@
-# omnicontext
+# OmniContext
 
-A new Flutter project.
+**OmniContext** is an AI-native desktop dashboard and workspace intelligence tool. It runs securely on your local machine, bridging the gap between your Git repositories, your IDE (VS Code), and Large Language Models (LLMs).
 
-## Getting Started
+By seamlessly integrating a custom VS Code extension via a local WebSocket, OmniContext tracks your terminal history, active files, and git diffs in real-time. It then vectorizes this data to provide instant semantic search and intelligently structured context packets for generation—essentially serving as a proactive, hyper-aware AI brain for developers.
 
-This project is a starting point for a Flutter application.
+### Getting Started for QA & Testing
+If you are part of the testing or development group, please refer to the comprehensive [OmniContext Testing Guide](TESTING_GUIDE.md). It contains step-by-step instructions on how to trigger the global UI, test the VS Code integrations, execute semantic codebase searches, and debug the LLM context pipelines.
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+---
+*Built with Flutter for optimal desktop performance.*
